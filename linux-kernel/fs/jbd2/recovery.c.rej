@@ -1,0 +1,42 @@
+--- fs/jbd2/recovery.c
++++ fs/jbd2/recovery.c
+@@ -19,6 +19,7 @@
+ #include <linux/errno.h>
+ #include <linux/crc32.h>
+ #include <linux/blkdev.h>
++#include <linux/rhashtable.h>
+ #endif
+ 
+ /*
+@@ -251,6 +252,10 @@ int jbd2_journal_recover(journal_t *jour
+ 	memset(&info, 0, sizeof(info));
+ 	sb = journal->j_superblock;
+ 
++	err = jbd2_journal_init_recovery_revoke(journal);
++	if (err)
++		return err;
++
+ 	/*
+ 	 * The journal superblock's s_start field (the current log head)
+ 	 * is always zero if, and only if, the journal was cleanly
+--- fs/jbd2/recovery.c
++++ fs/jbd2/recovery.c
+@@ -19,6 +19,7 @@
+ #include <linux/errno.h>
+ #include <linux/crc32.h>
+ #include <linux/blkdev.h>
++#include <linux/rhashtable.h>
+ #endif
+ 
+ /*
+@@ -251,6 +252,10 @@ int jbd2_journal_recover(journal_t *jour
+ 	memset(&info, 0, sizeof(info));
+ 	sb = journal->j_superblock;
+ 
++	err = jbd2_journal_init_recovery_revoke(journal);
++	if (err)
++		return err;
++
+ 	/*
+ 	 * The journal superblock's s_start field (the current log head)
+ 	 * is always zero if, and only if, the journal was cleanly

@@ -1,0 +1,24 @@
+{
+    "files.associations": {
+        "typeinfo": "c",
+        "delay.h": "c",
+        "random": "c",
+        "*.tcc": "c",
+        "streambuf": "c",
+        "type_traits": "c",
+        "shuffle.h": "c",
+        "internal.h": "c",
+        "rcupdate.h": "c",
+        "llist.h": "c",
+        "atomic": "cpp",
+        "atomic.h": "c",
+        "atomic-gcc.h": "c",
+        "kernel.h": "c",
+        "lockfree_list.h": "c",
+        "cstdlib": "c",
+        "compression.h": "c",
+        "mempool.h": "c",
+        "debugfs.h": "c"
+    },
+    "git.ignoreLimitWarning": true
+}

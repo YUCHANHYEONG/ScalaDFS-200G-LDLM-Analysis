@@ -1,0 +1,258 @@
+--- block/bio-integrity.c
++++ block/bio-integrity.c
+@@ -39,7 +39,7 @@ void blk_flush_integrity(void)
+ }
+ 
+ /**
+- * bio_integrity_alloc - Allocate integrity payload and attach it to bio
++ * bio_integrity_alloc_fn - Allocate integrity payload and attach it to bio
+  * @bio:	bio to attach integrity metadata to
+  * @gfp_mask:	Memory allocation mask
+  * @nr_vecs:	Number of integrity metadata scatter-gather elements
+@@ -48,9 +48,10 @@ void blk_flush_integrity(void)
+  * metadata.  nr_vecs specifies the maximum number of pages containing
+  * integrity metadata that can be attached.
+  */
+-struct bio_integrity_payload *bio_integrity_alloc(struct bio *bio,
+-						  gfp_t gfp_mask,
+-						  unsigned int nr_vecs)
++struct bio_integrity_payload *bio_integrity_alloc_fn(struct bio *bio,
++						     gfp_t gfp_mask,
++						     unsigned int nr_vecs,
++						     integrity_processing_fn *verify_fn)
+ {
+ 	struct bio_integrity_payload *bip;
+ 	struct bio_set *bs = bio->bi_pool;
+@@ -85,6 +86,7 @@ struct bio_integrity_payload *bio_integr
+ 	}
+ 
+ 	bip->bip_bio = bio;
++	bip->bip_verify_fn = verify_fn;
+ 	bio->bi_integrity = bip;
+ 	bio->bi_opf |= REQ_INTEGRITY;
+ 
+@@ -93,6 +95,14 @@ err:
+ 	mempool_free(bip, &bs->bio_integrity_pool);
+ 	return ERR_PTR(-ENOMEM);
+ }
++EXPORT_SYMBOL(bio_integrity_alloc_fn);
++
++struct bio_integrity_payload *bio_integrity_alloc(struct bio *bio,
++						  gfp_t gfp_mask,
++						  unsigned int nr_vecs)
++{
++	return bio_integrity_alloc_fn(bio, gfp_mask, nr_vecs, NULL);
++}
+ EXPORT_SYMBOL(bio_integrity_alloc);
+ 
+ /**
+@@ -200,7 +210,7 @@ static blk_status_t bio_integrity_proces
+ }
+ 
+ /**
+- * bio_integrity_prep - Prepare bio for integrity I/O
++ * bio_integrity_prep_fn - Prepare bio for integrity I/O
+  * @bio:	bio to prepare
+  *
+  * Description:  Checks if the bio already has an integrity payload attached.
+@@ -211,7 +221,9 @@ static blk_status_t bio_integrity_proces
+  * the block device's integrity function.  In the READ case, the buffer
+  * will be prepared for DMA and a suitable end_io handler set up.
+  */
+-bool bio_integrity_prep(struct bio *bio)
++bool bio_integrity_prep_fn(struct bio *bio,
++			   integrity_processing_fn *generate_fn,
++			   integrity_processing_fn *verify_fn)
+ {
+ 	struct bio_integrity_payload *bip;
+ 	struct blk_integrity *bi = blk_get_integrity(bio->bi_disk);
+@@ -261,7 +273,7 @@ bool bio_integrity_prep(struct bio *bio)
+ 	nr_pages = end - start;
+ 
+ 	/* Allocate bio integrity payload and integrity vectors */
+-	bip = bio_integrity_alloc(bio, GFP_NOIO, nr_pages);
++	bip = bio_integrity_alloc_fn(bio, GFP_NOIO, nr_pages, verify_fn);
+ 	if (IS_ERR(bip)) {
+ 		printk(KERN_ERR "could not allocate data integrity bioset\n");
+ 		kfree(buf);
+@@ -309,7 +321,7 @@ bool bio_integrity_prep(struct bio *bio)
+ 	/* Auto-generate integrity metadata if this is a write */
+ 	if (bio_data_dir(bio) == WRITE) {
+ 		bio_integrity_process(bio, &bio->bi_iter,
+-				      bi->profile->generate_fn);
++				      generate_fn ?: bi->profile->generate_fn);
+ 	} else {
+ 		bip->bio_iter = bio->bi_iter;
+ 	}
+@@ -321,6 +333,12 @@ err_end_io:
+ 	return false;
+ 
+ }
++EXPORT_SYMBOL(bio_integrity_prep_fn);
++
++bool bio_integrity_prep(struct bio *bio)
++{
++	return bio_integrity_prep_fn(bio, NULL, NULL);
++}
+ EXPORT_SYMBOL(bio_integrity_prep);
+ 
+ /**
+@@ -344,7 +362,7 @@ static void bio_integrity_verify_fn(stru
+ 	 * it's original position.
+ 	 */
+ 	bio->bi_status = bio_integrity_process(bio, &bip->bio_iter,
+-						bi->profile->verify_fn);
++					bip->bip_verify_fn ?: bi->profile->verify_fn);
+ 	bio_integrity_free(bio);
+ 	bio_endio(bio);
+ }
+@@ -427,7 +445,8 @@ int bio_integrity_clone(struct bio *bio,
+ 
+ 	BUG_ON(bip_src == NULL);
+ 
+-	bip = bio_integrity_alloc(bio, gfp_mask, bip_src->bip_vcnt);
++	bip = bio_integrity_alloc_fn(bio, gfp_mask, bip_src->bip_vcnt,
++				     bip_src->bip_verify_fn);
+ 	if (IS_ERR(bip))
+ 		return PTR_ERR(bip);
+ 
+--- block/bio-integrity.c
++++ block/bio-integrity.c
+@@ -197,6 +197,8 @@ static blk_status_t bio_integrity_proces
+ 
+ 		iter.data_buf = kaddr + bv.bv_offset;
+ 		iter.data_size = bv.bv_len;
++		iter.bi_idx = bviter.bi_idx;
++		iter.bio = bio;
+ 
+ 		ret = proc_fn(&iter);
+ 		if (ret) {
+--- block/bio-integrity.c
++++ block/bio-integrity.c
+@@ -39,7 +39,7 @@ void blk_flush_integrity(void)
+ }
+ 
+ /**
+- * bio_integrity_alloc - Allocate integrity payload and attach it to bio
++ * bio_integrity_alloc_fn - Allocate integrity payload and attach it to bio
+  * @bio:	bio to attach integrity metadata to
+  * @gfp_mask:	Memory allocation mask
+  * @nr_vecs:	Number of integrity metadata scatter-gather elements
+@@ -48,9 +48,10 @@ void blk_flush_integrity(void)
+  * metadata.  nr_vecs specifies the maximum number of pages containing
+  * integrity metadata that can be attached.
+  */
+-struct bio_integrity_payload *bio_integrity_alloc(struct bio *bio,
+-						  gfp_t gfp_mask,
+-						  unsigned int nr_vecs)
++struct bio_integrity_payload *bio_integrity_alloc_fn(struct bio *bio,
++						     gfp_t gfp_mask,
++						     unsigned int nr_vecs,
++						     integrity_processing_fn *verify_fn)
+ {
+ 	struct bio_integrity_payload *bip;
+ 	struct bio_set *bs = bio->bi_pool;
+@@ -85,6 +86,7 @@ struct bio_integrity_payload *bio_integr
+ 	}
+ 
+ 	bip->bip_bio = bio;
++	bip->bip_verify_fn = verify_fn;
+ 	bio->bi_integrity = bip;
+ 	bio->bi_opf |= REQ_INTEGRITY;
+ 
+@@ -93,6 +95,14 @@ err:
+ 	mempool_free(bip, &bs->bio_integrity_pool);
+ 	return ERR_PTR(-ENOMEM);
+ }
++EXPORT_SYMBOL(bio_integrity_alloc_fn);
++
++struct bio_integrity_payload *bio_integrity_alloc(struct bio *bio,
++						  gfp_t gfp_mask,
++						  unsigned int nr_vecs)
++{
++	return bio_integrity_alloc_fn(bio, gfp_mask, nr_vecs, NULL);
++}
+ EXPORT_SYMBOL(bio_integrity_alloc);
+ 
+ /**
+@@ -200,7 +210,7 @@ static blk_status_t bio_integrity_proces
+ }
+ 
+ /**
+- * bio_integrity_prep - Prepare bio for integrity I/O
++ * bio_integrity_prep_fn - Prepare bio for integrity I/O
+  * @bio:	bio to prepare
+  *
+  * Description:  Checks if the bio already has an integrity payload attached.
+@@ -211,7 +221,9 @@ static blk_status_t bio_integrity_proces
+  * the block device's integrity function.  In the READ case, the buffer
+  * will be prepared for DMA and a suitable end_io handler set up.
+  */
+-bool bio_integrity_prep(struct bio *bio)
++bool bio_integrity_prep_fn(struct bio *bio,
++			   integrity_processing_fn *generate_fn,
++			   integrity_processing_fn *verify_fn)
+ {
+ 	struct bio_integrity_payload *bip;
+ 	struct blk_integrity *bi = blk_get_integrity(bio->bi_disk);
+@@ -261,7 +273,7 @@ bool bio_integrity_prep(struct bio *bio)
+ 	nr_pages = end - start;
+ 
+ 	/* Allocate bio integrity payload and integrity vectors */
+-	bip = bio_integrity_alloc(bio, GFP_NOIO, nr_pages);
++	bip = bio_integrity_alloc_fn(bio, GFP_NOIO, nr_pages, verify_fn);
+ 	if (IS_ERR(bip)) {
+ 		printk(KERN_ERR "could not allocate data integrity bioset\n");
+ 		kfree(buf);
+@@ -309,7 +321,7 @@ bool bio_integrity_prep(struct bio *bio)
+ 	/* Auto-generate integrity metadata if this is a write */
+ 	if (bio_data_dir(bio) == WRITE) {
+ 		bio_integrity_process(bio, &bio->bi_iter,
+-				      bi->profile->generate_fn);
++				      generate_fn ?: bi->profile->generate_fn);
+ 	} else {
+ 		bip->bio_iter = bio->bi_iter;
+ 	}
+@@ -321,6 +333,12 @@ err_end_io:
+ 	return false;
+ 
+ }
++EXPORT_SYMBOL(bio_integrity_prep_fn);
++
++bool bio_integrity_prep(struct bio *bio)
++{
++	return bio_integrity_prep_fn(bio, NULL, NULL);
++}
+ EXPORT_SYMBOL(bio_integrity_prep);
+ 
+ /**
+@@ -344,7 +362,7 @@ static void bio_integrity_verify_fn(stru
+ 	 * it's original position.
+ 	 */
+ 	bio->bi_status = bio_integrity_process(bio, &bip->bio_iter,
+-						bi->profile->verify_fn);
++					bip->bip_verify_fn ?: bi->profile->verify_fn);
+ 	bio_integrity_free(bio);
+ 	bio_endio(bio);
+ }
+@@ -427,7 +445,8 @@ int bio_integrity_clone(struct bio *bio,
+ 
+ 	BUG_ON(bip_src == NULL);
+ 
+-	bip = bio_integrity_alloc(bio, gfp_mask, bip_src->bip_vcnt);
++	bip = bio_integrity_alloc_fn(bio, gfp_mask, bip_src->bip_vcnt,
++				     bip_src->bip_verify_fn);
+ 	if (IS_ERR(bip))
+ 		return PTR_ERR(bip);
+ 
+--- block/bio-integrity.c
++++ block/bio-integrity.c
+@@ -197,6 +197,8 @@ static blk_status_t bio_integrity_proces
+ 
+ 		iter.data_buf = kaddr + bv.bv_offset;
+ 		iter.data_size = bv.bv_len;
++		iter.bi_idx = bviter.bi_idx;
++		iter.bio = bio;
+ 
+ 		ret = proc_fn(&iter);
+ 		if (ret) {

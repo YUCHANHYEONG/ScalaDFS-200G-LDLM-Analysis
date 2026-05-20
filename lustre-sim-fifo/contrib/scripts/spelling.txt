@@ -1,0 +1,136 @@
+# The format of each line is:
+# mistake||correction
+#
+ALWAYS_EXCEPT||always_except
+alloca||malloc
+cfs_get_random_bytes/get_random_bytes
+cfs_hash_bd_t||struct cfs_hash_bd
+cfs_hash_bucket_t||struct cfs_hash_bucket
+cfs_hash_cond_arg_t||struct cfs_hash_cond_arg
+cfs_hash_dhead_dep_t||struct cfs_hash_dhead_dep
+cfs_hash_dhead_t||struct cfs_hash_dhead
+cfs_hash_head_dep_t||struct cfs_hash_head_dep
+cfs_hash_head_t||struct cfs_hash_head
+cfs_hash_hlist_ops_t||struct cfs_hash_hlist_ops
+cfs_hash_lock_ops_t||struct cfs_hash_lock_ops
+cfs_hash_lock_t||union cfs_hash_lock
+cfs_hash_lookup_intent_t||enum cfs_hash_lookup_intent
+cfs_hash_ops_t||struct cfs_hash_ops
+cfs_hash_t||struct cfs_hash
+cfs_rcu_head_t||struct rcu_head
+cfs_rand||get_random_u32
+cfs_srand||add_device_randomness
+cfs_size_round||round_up
+cfs_trimwhite||strim
+cfs_time_add_64||ktime_add
+cfs_time_after||time_after
+cfs_time_aftereq||time_after_eq
+cfs_time_before||time_before
+cfs_time_beforeeq||time_before_eq
+cfs_time_beforeq_64||ktime_compare
+cfs_time_before_64||ktime_before
+cfs_time_current||jiffies
+cfs_time_current_64||ktime_get
+cfs_time_current_sec||ktime_get_real_seconds
+CLASSERT||BUILD_BUG_ON()
+msecs_to_jiffies||cfs_time_seconds
+DEFINE_TIMER||CFS_DEFINE_TIMER
+define OBD_CONNECT||see "XXX README XXX" below and contact adilger@whamcloud.com
+__u[136][624] ocd_||see "XXX README XXX" below and contact adilger@whamcloud.com
+del_timer||timer_delete
+del_timer_sync||timer_delete_sync
+del_singleshot_timer_sync||timer_delete_sync
+EWOULDBLOCK||EAGAIN
+container_of0||container_of_safe
+DN_MAX_BONUSLEN||DN_BONUS_SIZE(dnodesize)
+DN_OLD_MAX_BONUSLEN||DN_BONUS_SIZE(DNODE_MIN_SIZE)
+ENOTSUPP||EOPNOTSUPP
+ERR_PTR.PTR_ERR||ERR_CAST
+from_timer||cfs_from_timer
+f_dentry||f_path.dentry
+[^_]get_seconds||ktime_get_real_seconds
+kmem_cache_alloc.*GFP_ZERO||kmem_cache_zalloc
+ldebugfs_remove||debugfs_remove_recursive
+ldlm_appetite_t||enum ldlm_appetite
+ldlm_cancel_flags_t||enum ldlm_cancel_flags
+ldlm_error_t||enum ldlm_error
+ldlm_mode_t||enum ldlm_mode
+ldlm_ns_hash_def_t||struct ldlm_ns_hash_def
+ldlm_ns_type_t||enum ldlm_ns_type
+ldlm_policy_data_t||enum ldlm_policy_data
+ldlm_policy_res_t||enum ldlm_policy_res
+ldlm_side_t||enum ldlm_side
+ldlm_type_t||enum ldlm_type
+ldlm_wire_policy_data_t||union ldlm_wire_policy_data
+libcfs_debug_vmsg2||libcfs_debug_msg
+lnet_acceptor_connreq_t||struct lnet_acceptor_connreq
+lnet_counters_t||struct lnet_counters
+lnet_handle_wire_t||struct lnet_handle_wire
+lnet_hdr_t||struct lnet_hdr
+lnet_magicversion_t||struct lnet_magicversion
+lnet_ni_status_t||struct lnet_ni_status
+lnet_ping_info_t||struct lnet_ping_info
+lnet_process_id_packed_t||struct lnet_process_id_packed
+HZ||cfs_time_seconds
+LPD64||%lld
+LPLD||%ld
+LPLU||%lu
+LPLX||%#lx
+LPO64||%#llo
+LPPID||%d
+lprocfs_str_to_s64||kstrtoxxx_from_user
+lprocfs_str_with_units_to_u64||sysfs_memparse using sysfs/kernbuf
+lprocfs_str_with_units_to_s64||sysfs_memparse using sysfs/kernbuf
+lu_str_to_s64||sysfs_memparse
+LPROC_SEQ_FOPS||LUSTRE_RW_ATTR
+LPROC_SEQ_FOPS_RO_TYPE||LUSTRE_RO_ATTR
+LPROC_SEQ_FOPS_RO||LUSTRE_RO_ATTR
+LPROC_SEQ_FOPS_RW_TYPE||LUSTRE_RW_ATTR
+LPROC_SEQ_FOPS_WR_ONLY||LUSTRE_WO_ATTR
+l_wait_event||wait_event_idle
+l_wait_event_exclusive||l_wait_event_abortable_exclusive
+l_wait_event_exclusive_head||wait_event_idle_exclusive_lifo_timeout
+l_wait_condition||wait_event_idle
+\bMAX\(||max_t
+\bMIN\(||min_t
+mdo2fid||mdd_object_fid
+mktemp||mkstemp
+nla_strlcpy|nla_strscpy
+OBD_FAILED||CFS_FAILED
+OBD_FAIL_CHECK||CFS_FAIL_CHECK
+OBD_FAIL_CHECK_ORSET||CFS_FAIL_CHECK_ORSET
+OBD_FAIL_CHECK_RESET||CFS_FAIL_CHECK_RESET
+OBD_FAIL_CHECK_VALUE||CFS_FAIL_CHECK_VALUE
+OBD_FAIL_ONCE||CFS_FAIL_ONCE
+OBD_FAIL_PRECHECK||CFS_FAIL_PRECHECK
+OBD_FAIL_RETURN||CFS_FAIL_RETURN
+OBD_FAIL_TIMEOUT||CFS_FAIL_TIMEOUT
+OBD_FAIL_TIMEOUT_MS||CFS_FAIL_TIMEOUT_MS
+OBD_FAIL_TIMEOUT_ORSET||CFS_FAIL_TIMEOUT_ORSET
+OBD_RACE||CFS_RACE
+OS_STATE_DEGRADED||OS_STATFS_DEGRADED
+OS_STATE_READONLY||OS_STATFS_READONLY
+OS_STATE_NOPRECREATE||OS_STATFS_NOPRECREATE
+OS_STATE_ENOSPC||OS_STATFS_ENOSPC
+OS_STATE_ENOINO||OS_STATFS_ENOINO
+OS_STATE_SUM||OS_STATFS_SUM
+OS_STATE_NONROT||OS_STATFS_NONROT
+page_cache_get||get_page
+PAGE_CACHE_MASK||PAGE_MASK
+page_cache_release||put_page
+PAGE_CACHE_SHIFT||PAGE_SHIFT
+PAGE_CACHE_SIZE||PAGE_SIZE
+prandom_u32||get_random_u32
+prandom_u32_max||get_random_u32_below
+return seq_printf||seq_printf
+setup_timer||cfs_timer_setup
+= seq_printf||seq_printf
+sprintf||snprintf
+strcat||strncat
+strcpy||strncpy
+struct timeval||struct timespec64
+tempnam||mkstemp
+time_t||timeout_t
+timer_setup||cfs_timer_setup
+version_code.*2.1[7-9]||version 2.16.x should be used
+wait_queue_t||wait_queue_entry_t

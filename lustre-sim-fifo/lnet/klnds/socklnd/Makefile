@@ -1,0 +1,10 @@
+MODULES := ksocklnd
+
+ksocklnd-objs := \
+	socklnd.o \
+	socklnd_cb.o \
+	socklnd_lib.o \
+	socklnd_modparams.o \
+	socklnd_proto.o
+
+include /root/workspace_ych/FAST27/sim-fifo-v3/lustre-sim-fifo/Rules

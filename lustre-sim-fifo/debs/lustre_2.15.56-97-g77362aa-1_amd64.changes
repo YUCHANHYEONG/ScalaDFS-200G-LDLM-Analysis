@@ -1,0 +1,54 @@
+Format: 1.8
+Date: Sun, 16 Jul 2023 13:35:17 +0000
+Source: lustre
+Binary: lustre-client-utils lustre-dev lustre-iokit lustre-source lustre-tests
+Built-For-Profiles: noudeb
+Architecture: source amd64 all
+Version: 2.15.56-97-g77362aa-1
+Distribution: unstable
+Urgency: low
+Maintainer: Lustre Developers <lustre-devel@lists.lustre.org>
+Changed-By: Andreas Dilger <adilger@whamcloud.com>
+Description:
+ lustre-client-utils - Userspace utilities for the Lustre filesystem (client)
+ lustre-dev - Development files for the Lustre filesystem
+ lustre-iokit - Collection of benchmark tools for the Lustre filesystem
+ lustre-source - source for Lustre filesystem client kernel modules
+ lustre-tests - Test suite for the Lustre filesystem
+Changes:
+ lustre (2.15.56-97-g77362aa-1) unstable; urgency=low
+ .
+   * Automated changelog entry update
+Checksums-Sha1:
+ 3f772982981c735ca2015c64c4ba70c82a24f6a9 1871 lustre_2.15.56-97-g77362aa-1.dsc
+ 1abe0f3731d8d95ede3f435a82d22747859072b3 24852885 lustre_2.15.56-97-g77362aa-1.tar.gz
+ 889760c617b658ee09f469b653856091a10e74c8 1294502 lustre-client-utils-dbgsym_2.15.56-97-g77362aa-1_amd64.ddeb
+ 1fe49d9bddef11b0bac87ba8d353a7c5f25b996f 657918 lustre-client-utils_2.15.56-97-g77362aa-1_amd64.deb
+ 36740a45aaf9b2040ce384f3918c118cf6a1760f 773878 lustre-dev_2.15.56-97-g77362aa-1_amd64.deb
+ f09bcb3d63d86ce309f9f8fe99b0f1db0acfb02c 134506 lustre-iokit_2.15.56-97-g77362aa-1_amd64.deb
+ 2da20cacb82dd02fcfa1fa9e0f9bb6177b427263 22738052 lustre-source_2.15.56-97-g77362aa-1_all.deb
+ a6ae41314254a14b769bbc6b4d52ea595097d1f1 1031874 lustre-tests-dbgsym_2.15.56-97-g77362aa-1_amd64.ddeb
+ a6809e87e75f48c35904d680df14926fdc181b53 16440014 lustre-tests_2.15.56-97-g77362aa-1_amd64.deb
+ b2593813ec42a31cdee46ca1076daeeafae1c2d5 12912 lustre_2.15.56-97-g77362aa-1_amd64.buildinfo
+Checksums-Sha256:
+ ec5fb42897365efe30b074ff622574fce7153a742f4e686ed65ec683b7da0ca0 1871 lustre_2.15.56-97-g77362aa-1.dsc
+ 23165fc929697aad4ef70ba55741a3ee9f789d8d3e2024085079fac4e7f2abf4 24852885 lustre_2.15.56-97-g77362aa-1.tar.gz
+ a77a71317744ddda1e38bea2b3e919d34add5c4fe58fe313e0c904d8528257f5 1294502 lustre-client-utils-dbgsym_2.15.56-97-g77362aa-1_amd64.ddeb
+ 5d0e4f8c4e831cb5a546a60fce83540a09876a8353dc87946c1252cff8e9a3ac 657918 lustre-client-utils_2.15.56-97-g77362aa-1_amd64.deb
+ 55431d4af425efd948f8688e86de483b20d54ae6c0f3a52fb8fa50172cfce9bc 773878 lustre-dev_2.15.56-97-g77362aa-1_amd64.deb
+ 06294f10c37cb200028a9cc5b3938870bab9e020956bcc45b8948e5096f0d4ff 134506 lustre-iokit_2.15.56-97-g77362aa-1_amd64.deb
+ 7fa96a6c545bcf8fa588ebac4c6a0b5bbf2eded91d4db7f324d7f33fead5cac1 22738052 lustre-source_2.15.56-97-g77362aa-1_all.deb
+ 942a766710183d1ede469fc72eff6e63bf093d4b77e1e0d7db36572eaa178e93 1031874 lustre-tests-dbgsym_2.15.56-97-g77362aa-1_amd64.ddeb
+ dab443c2d6772f1d1be8fe9e37e58006ae8c2e0e7dca5075ce8783e8445f4420 16440014 lustre-tests_2.15.56-97-g77362aa-1_amd64.deb
+ c79448e8f93a2d8224b40127bfdd967f3345d1ce8ec39897ffa104bfd5e5e102 12912 lustre_2.15.56-97-g77362aa-1_amd64.buildinfo
+Files:
+ 93bd7e78516bb5df0ce3b61bc123bc35 1871 admin optional lustre_2.15.56-97-g77362aa-1.dsc
+ fe4c1b1fb0ff415e3c21ac2ac21878f7 24852885 admin optional lustre_2.15.56-97-g77362aa-1.tar.gz
+ 7766210444a225dd72b10632f80e3ab5 1294502 debug optional lustre-client-utils-dbgsym_2.15.56-97-g77362aa-1_amd64.ddeb
+ e1282c954707a7e735147e45b3d3f7a4 657918 utils optional lustre-client-utils_2.15.56-97-g77362aa-1_amd64.deb
+ 19f2766360184295886345e6b1694d57 773878 libdevel optional lustre-dev_2.15.56-97-g77362aa-1_amd64.deb
+ 9c13c81ac10e5e991a031b0268d6d2cd 134506 utils optional lustre-iokit_2.15.56-97-g77362aa-1_amd64.deb
+ d6ad83371c251c503a4b021ecb7c1eeb 22738052 admin optional lustre-source_2.15.56-97-g77362aa-1_all.deb
+ b3f1fbdb7f148293dcbe8f350683b63f 1031874 debug optional lustre-tests-dbgsym_2.15.56-97-g77362aa-1_amd64.ddeb
+ f55c7d5dc178632bd6d3dda4792ce624 16440014 utils optional lustre-tests_2.15.56-97-g77362aa-1_amd64.deb
+ b049ac909570d456a3f501724c171c8a 12912 admin optional lustre_2.15.56-97-g77362aa-1_amd64.buildinfo

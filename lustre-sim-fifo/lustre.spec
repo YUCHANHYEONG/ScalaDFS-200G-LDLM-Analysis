@@ -1,0 +1,922 @@
+# SPDX-License-Identifier: GPL-2.0
+
+#
+# This file is part of Lustre, http://www.lustre.org/
+#
+# lustre.spec.in
+#
+# spec file template for RHEL package builds
+#
+
+# Declare rpmbuild --with/--without parameters
+%bcond_without servers
+%bcond_without ldiskfs
+%bcond_with zfs
+%bcond_without lustre_tests
+%bcond_without lustre_utils
+%bcond_without lustre_iokit
+%bcond_without lustre_modules
+%bcond_with snmp
+%bcond_with gss
+%bcond_with gss_keyring
+%bcond_without manpages
+%bcond_without shared
+%bcond_without static
+%bcond_with    systemd
+%bcond_with mofed
+%bcond_without mpi
+%bcond_with kabi
+
+# LUTF Turn off brp-python-precompile script as we don't want the python files
+# to be compiled on installation
+%global __os_install_post %(echo '%{__os_install_post}' | sed -e 's!/usr/lib[^[:space:]]*/brp-python-bytecompile[[:space:]].*$!!g')
+
+# By default both gss and gss keyring are disabled.
+# gss keyring requires the gss core. If the builder
+# request gss_keyring we must enable gss core even if
+# the builder attempts to disable gss.
+%if %{with gss_keyring}
+    %define with_gss 1
+%endif
+
+%if %{without servers}
+    # --without servers overrides --with {ldiskfs|zfs}
+    # so undefine the internal variables set by bcond_*
+    %undefine with_ldiskfs
+    %undefine with_zfs
+%endif
+
+%if %{without shared} && %{without static}
+# need exit to stop build because error only displays a message
+%{error: you can't disable both library types}
+%{exit 1}
+%endif
+
+# lustre_tests depends on lustre_utils
+%if %{without lustre_utils}
+%undefine with_lustre_tests
+%endif
+
+%{!?version: %global version 2.15.56_97_g77362aa}
+# if you want a custom kernel version set it variable with $ver.$arch
+%{!?kver:    %global kver    %(uname -r)}
+# cut epoch for kmodtool
+%define _kver %(echo %{kver} | sed -e 's/^[0-9]*://')
+# trust version from kdir - but it can lost 'epoch'
+%if %{defined kdir}
+	%define _take_kver 1
+%endif
+%if %{defined kobjdir}
+	%define _take_kobj 1
+%endif
+%{!?kdir:    %global kdir    /lib/modules/%{_kver}/source}
+%{!?kobjdir: %global kobjdir %(if [ "%{kdir}" = "/lib/modules/%{_kver}/source" ]; then echo "/lib/modules/%{_kver}/build"; else echo "%{kdir}"; fi)}
+
+%if 0%{?suse_version} >= 1310 && %{defined _take_kobj}
+	%global _flavor %(echo %{_kver} | sed -e 's/^.*-//')
+%else
+	%global _flavor default
+%endif
+
+%if %{defined _take_kver}
+# as an alternative to this implementation we could simply "make -C $kdir kernelversion"
+%global kver %(files="include/generated/utsrelease.h include/linux/utsrelease.h include/linux/version.h"; for f in $files; do if test -r %{kobjdir}/$f && grep UTS_RELEASE %{kobjdir}/$f >/dev/null; then sed -ne '/^#define UTS_RELEASE/s/.*"\\(.*\\)"$/\\1/p' %{kobjdir}/$f; break; fi; done)
+%define _kver %kver
+%endif
+
+# We set this because kernel_module_package has its own method of identifying
+# which kernel to build against, and it is unlikely that its decision will
+# match with Lustre's method of selecting which kernel to build against.
+# By setting this variable, we override kernel_module_package's kernel
+# selection with our selection.
+# kmodtool failed to take a version if epoch set
+%global kernel_version %_kver
+
+# in order to get kernel symset and/or kernel module dependencies into
+# the RPM, in order to support weak-modules, the internal dependency gen-
+# erator needs to be disabled
+# this is done with (reduce the double % down to a single %):
+#
+# %%global _use_internal_dependency_generator 0
+#
+# on SLES10, /usr/lib/rpm/macros already sets this, so no harm in also
+# defining it here (until Suse changes their mind)
+#
+# on RHEL5, however, we do need to explicitly disable the internal dep-
+# endency generator and allow the external one be used
+# but since RedHat's kABI is only a subset of the total kernel ABI, it
+# doesn't include all of the symbols we (or OFED for that matter) need
+# until RedHat includes all of the symbols we need in their symsets we
+# cannot support weak-modules
+# we did e-mail the maintainer of all of this stuff @redhat but got no
+# response from them
+#%%global _use_internal_dependency_generator 0
+
+%if 0%{?rhel} > 7 || 0%{?fedora} > 33
+## SUSE uses another tool for provides:
+## https://github.com/openSUSE/kernel-source/blob/master/patches.rpmify/Add-ksym-provides-tool.patch
+%global __find_provides   %{_sourcedir}/find-provides
+%endif
+
+# Set the package name prefix
+%if %{undefined lustre_name}
+    %if %{with servers}
+	%global lustre_name lustre
+    %else
+	%global lustre_name lustre-client
+    %endif
+%endif
+
+%if %{with lustre_modules}
+%if %{undefined kmoddir}
+    %if %{defined kernel_module_package_moddir}
+	%global kmoddir %{kernel_module_package_moddir}
+    %else
+	%if %{defined suse_kernel_module_package}
+	    %global kmoddir updates
+	%else
+	    %global kmoddir extra
+	%endif
+    %endif
+%endif
+
+%global modules_fs_path /lib/modules/%{_kver}/%{kmoddir}
+# requires want to set a version including epoch
+%global krequires %(echo %{kver} | sed -e 's/\.x86_64$//' -e 's/\.i[3456]86$//' -e 's/-smp$//' -e 's/-bigsmp$//' -e 's/[-.]ppc64$//' -e 's/\.aarch64$//' -e 's/-default$//' -e 's/-%{_flavor}//')
+
+%if "%{_vendor}" == "redhat" || "%{_vendor}" == "fedora" || "%{_vendor}" == "openEuler"
+	%global requires_kmod_name kmod-%{lustre_name}
+	%global requires_kmod_osd_zfs_name kmod-%{lustre_name}-osd-zfs
+	%if %{with lustre_tests}
+		%global requires_kmod_tests_name kmod-%{lustre_name}-tests
+	%endif
+	%global requires_kmod_version %{version}
+#for Suse
+%else
+	%global requires_kmod_name %{lustre_name}-kmp
+	%global requires_kmod_osd_zfs_name %{lustre_name}-osd-zfs-kmp
+	%if %{with lustre_tests}
+		%global requires_kmod_tests_name %{lustre_name}-tests-kmp
+	%endif
+	%if 0%{?suse_version} >= 1200
+		%global requires_kmod_version %{version}_k%(echo %{krequires} | sed -r 'y/-/_/; s/^(2\.6\.[0-9]+)_/\\1.0_/;')
+	%else
+		%global requires_kmod_version %{version}_%(echo %{krequires} | sed -r 'y/-/_/; s/^(2\.6\.[0-9]+)_/\\1.0_/;')
+	%endif
+%endif
+%endif
+
+# RHEL >= 7 comes with systemd
+%if 0%{?rhel} >= 7
+%define with_systemd 1
+%endif
+
+# Fedora >= 15 comes with systemd, but only >= 18 has
+# the proper macros
+%if 0%{?fedora} >= 18
+%define with_systemd 1
+%endif
+
+# opensuse >= 12.1 comes with systemd, but only >= 13.1
+# has the proper macros
+%if 0%{?suse_version} >= 1310
+%define with_systemd 1
+%endif
+
+# openEuler comes with systemd
+%if "%{_vendor}" == "openEuler"
+%define with_systemd 1
+%endif
+
+%{!?mpi_name: %global mpi_name openmpi}
+
+Summary: Lustre File System
+Name: %{lustre_name}
+Version: %{version}
+Release: 1%{?dist}
+License: GPL-2.0-only AND LGPL-2.1-or-later
+%if 0%{?suse_version} >= 1310
+# SUSE needs Group for the kernel_module_package macro
+Group: System/Kernel
+%endif
+Source: lustre-%{version}.tar.gz
+Source1: kmp-lustre.preamble
+Source2: kmp-lustre.files
+Source3: kmp-lustre-osd-ldiskfs.preamble
+Source4: kmp-lustre-osd-ldiskfs.files
+Source5: kmp-lustre-osd-zfs.preamble
+Source6: kmp-lustre-osd-zfs.files
+Source7: kmp-lustre-tests.preamble
+Source8: kmp-lustre-tests.files
+Source9: find-provides
+Source10: find-provides.ksyms
+URL: https://wiki.whamcloud.com/
+BuildRoot: %{_tmppath}/lustre-%{version}-root
+%if %{with lustre_modules}
+Requires: %{requires_kmod_name} = %{requires_kmod_version}
+%endif
+%if %{with lustre_tests_lutf}
+Requires: python3 >= 3.6.0
+BuildRequires: python3-devel >= 3.6.0, swig
+%endif
+BuildRequires: libtool pkgconfig(yaml-0.1) pkgconfig(zlib) pkgconfig(libnl-3.0) flex bison
+%if "%{_vendor}" == "redhat"
+BuildRequires: redhat-rpm-config
+BuildRequires: pkgconfig
+%if 0%{?rhel} > 7 || 0%{?fedora} > 33 || 0%{?rhel} < 1
+Suggests: bash-completion
+%endif
+%else
+%if "%{_vendor}" == "openEuler"
+BuildRequires: openEuler-rpm-config
+%endif
+BuildRequires: pkg-config
+%endif
+%if %{with gss}
+BuildRequires: krb5-devel openssl-devel
+%endif
+%if %{with lustre_modules}
+# abuild (auto-build) used by SUSE Open Build Service
+# need kernel-source as a build requirement, but the code
+# which extracts these requirements don't understand %()
+# and treats all such as failures.  So the following dance
+# Allows the requirements to be seen by abuild, but ignored
+# by lbuild.
+%if "%(echo $USER)" != "abuild"
+%else
+BuildRequires: kernel-source
+%endif
+%endif
+%if %{with servers}
+Requires: %{name}-osd
+Requires: %{name}-osd-mount
+Obsoletes: lustre-server < %{version}
+Provides: lustre-server = %{version}-%{release}
+%endif
+Obsoletes: lustre-client < %{version}
+Provides: lustre-client = %{version}-%{release}
+%if "%{_vendor}" == "redhat" || "%{_vendor}" == "fedora" || "%{_vendor}" == "openEuler"
+#suse don't support selinux
+BuildRequires: pkgconfig(libselinux)
+%endif
+%if %{with lustre_modules}
+%if %{with mofed}
+BuildRequires: mlnx-ofa_kernel-devel
+%if "%{_vendor}" == "redhat" || "%{_vendor}" == "openEuler"
+Requires: kmod-mlnx-ofa_kernel
+%else
+Requires: mlnx-ofa_kernel-kmp
+%endif
+%endif
+%if 0%{?rhel} >= 8 || "%{_vendor}" == "openEuler"
+BuildRequires: kernel-rpm-macros
+%endif
+%if 0%{?suse_version} >= 1530
+BuildRequires: rpm-build >= 4.14.3
+%endif
+BuildRequires: %kernel_module_package_buildreqs
+# need to provide a /usr/lib/${uname -r)/build dir
+BuildRequires: kernel >= 3.10
+%if "%{_vendor}" == "redhat"
+%if %{with kabi}
+BuildRequires: kernel-abi-whitelists
+%endif
+%endif
+%endif
+
+%if %{with systemd}
+Requires(post): systemd
+Requires(preun): systemd
+Requires(postun): systemd
+BuildRequires: pkgconfig(systemd)
+%endif
+
+%description
+Userspace tools and files for the Lustre file system.
+
+%if %{with lustre_modules}
+%if 0%{?rhel} == 7
+# until we have achieved full kABI compatibility we need to
+# restrict the kernel range that can be used to the kernel
+# version from the RHEL minor release
+# this is supposed to be done for kmods automatically but
+# RHBZ#1467319 seems to be getting in the way
+# this is true for el7.0 through el7.4
+%define preamble %{expand:%(
+TMPFILE=`mktemp`
+cat %{SOURCE1} > $TMPFILE
+kver=%{kernel_version}
+linuxversion=${kver%%%%-*}
+linuxrelease=${kver##*-}
+kabiminor=${linuxrelease%%%%.*}
+echo "Requires:       kernel < $linuxversion-$((kabiminor+1)), kernel >= $linuxversion-$((kabiminor))" >> $TMPFILE
+echo $TMPFILE
+)}
+%else
+%define preamble %{SOURCE1}
+%endif
+%kernel_module_package -n %{name} -p %preamble -f %SOURCE2 %{_flavor}
+
+%if %{with ldiskfs}
+%kernel_module_package -n %{name}-osd-ldiskfs -p %SOURCE3 -f %SOURCE4 %{_flavor}
+%if %{with lustre_utils}
+%package osd-ldiskfs-mount
+Summary: Lustre mount's ldiskfs-specific helper library
+BuildRequires: e2fsprogs-devel >= 1.44.3 pkgconfig(mount)
+Requires: ldiskfsprogs > 1.45.6
+Provides: lustre-osd-mount = %{version}
+Provides: %{name}-osd-mount = %{version}
+Obsoletes: %{name}-osd-mount < %{version}
+Obsoletes: lustre-osd-mount < %{version}
+
+%description osd-ldiskfs-mount
+Provide a shared library (dso) that can be loaded into various
+lustre tools (mount/mkfs) to provide support for ldisfs
+
+# with lustre_utils
+%endif
+# with ldiskfs
+%endif
+
+%if %{with zfs}
+%kernel_module_package -n %{name}-osd-zfs -p %SOURCE5 -f %SOURCE6 %{_flavor}
+%if %{with lustre_utils}
+%package osd-zfs-mount
+Summary: Lustre mount's zfs-specific helper library
+BuildRequires: pkgconfig(mount)
+Provides: %{name}-osd-mount = %{version}
+Obsoletes: lustre-osd-mount < %{version}
+# Tests also require zpool from zfs package:
+Requires: zfs
+Requires: %{requires_kmod_osd_zfs_name}
+
+%description osd-zfs-mount
+Provide a shared library (dso) that can be loaded into various
+lustre tools (mount/mkfs) to provide support for ZFS.
+
+# with lustre_utils
+%endif
+# with zfs
+%endif
+# with lustre_modules
+%endif
+
+%if %{with servers}
+%package resource-agents
+Summary: HA Resuable Cluster Resource Scripts for Lustre
+Requires: %{name}
+Requires: resource-agents
+
+%description resource-agents
+A set of scripts to operate Lustre resources in a High Availablity
+environment for both Pacemaker and rgmanager.
+%endif
+
+%package devel
+Summary: Lustre include headers
+Provides: lustre-devel = %{version}
+Requires: %{lustre_name} = %{version}
+%if %{with lustre_modules}
+Requires: %{requires_kmod_name} = %{requires_kmod_version}
+%endif
+
+%description devel
+This package contains the header files needed for building additional
+applications against the Lustre / LNet utilities libraries.
+
+:> lustre-devel.files
+
+%if %{with lustre_tests}
+%package tests
+Summary: Lustre testing framework
+Provides: %{name}-tests = %{version}
+%if %{with lustre_iokit}
+Requires: %{name} = %{version}, lustre-iokit
+%else
+Requires: %{name} = %{version}
+%endif
+Requires: lustre-devel = %{version}
+%if 0%{?rhel} >= 8 || 0%{?suse_version} >= 1500
+Requires: python3 >= 3.6.0, python3-PyYAML
+%endif
+%if %{with lustre_modules}
+Requires: %{requires_kmod_name} = %{requires_kmod_version}
+Requires: %{requires_kmod_tests_name} = %{requires_kmod_version}
+%endif
+%if %{with lustre_tests_lutf}
+Requires: python3 >= 3.6.0
+%endif
+Requires: attr, rsync, lsof, /usr/bin/getconf
+Requires: /usr/sbin/getenforce, acl, /usr/bin/killall, /usr/bin/ping, bc
+# Of the supported targets, only rhel7 doesn't support Recommends.
+%if 0%{?rhel} > 7 || 0%{?fedora} > 33 || 0%{?rhel} < 1
+Recommends: perl, dbench, iozone
+# Either of these is sufficient
+Suggests: pdsh, clush
+%endif
+%if %{with mpi}
+%if "%{mpi_name}" == "mpich"
+BuildRequires: mpich-devel
+%endif
+%if "%{mpi_name}" == "openmpi"
+%if "%{_vendor}" == "redhat" || "%{_vendor}" == "openEuler" || 0%{?suse_version} < 1500
+BuildRequires: openmpi-devel
+%else
+BuildRequires: openmpi2-devel
+%endif
+# openmpi
+%endif
+# mpi
+%endif
+
+%description tests
+This package contains a set of test binaries and scripts that are intended
+to be used by the Lustre testing framework.
+
+%if %{with lustre_modules}
+%kernel_module_package -n %{name}-tests -p %SOURCE7 -f %SOURCE8 %{_flavor}
+%endif
+%endif
+
+%if %{with lustre_iokit}
+%package -n lustre-iokit
+Summary: Collection of benchmark tools for a cluster with the Lustre file system
+Requires: perl, sg3_utils
+
+%description -n lustre-iokit
+This package includes five tools:
+sgpdd-survey:
+A test of the 'bare metal' performance, bypassing as much of the kernel as we can. Uses the sgp_dd utility.
+
+obdfilter-survey
+This survey can be run in 3 modes to test disk I/O including the filesystem,
+network I/O, and disk I/O via the network.  The script does sequential I/O
+with varying numbers of threads and objects (files) by using lctl::test_brw
+to drive the echo_client connected to local or remote obdfilter instances,
+or remote obdecho instances.
+
+ost-survey
+This survey tests the client-to-disk performance of individual OSTs, and
+ranks then for comparison.
+
+stats-collect
+This script will collect IO stats on a defined set of nodes.
+
+ior-survey:
+A script to run the IOR benchmark. The latest version can be downloaded from
+https://github.com/hpc/ior/
+
+mds-survey:
+This survey tests the local metadata performance using the echo_client to drive
+the MDD layer to perform operations. It is run with multiple threads (to
+simulate MDT service threads) locally on the MDS node, and does not need Lustre
+clients in order to run
+
+lst-survey:
+This survey tests LNet performance between a group of clients and servers.
+%endif
+
+%if 0%{?suse_version}
+%debug_package
+%endif
+%prep
+%setup -qn lustre-%{version}
+ln lustre/ChangeLog ChangeLog-lustre
+ln lnet/ChangeLog ChangeLog-lnet
+
+%build
+# Set an explicit path to our Linux tree, if we can.
+cd $RPM_BUILD_DIR/lustre-%{version}
+
+# Store the CFLAGS and LDFLAGS that would normally be used in the UTILS_CFLAGS
+# and UTILS_LDFLAGS environment variables so that we use can them when compiling
+# the user-space code in lustre/utils and lnet/utils. As of RHEL 8.0, the
+# __global_* variants are deprecated in favour of build_cflags, etc. If neither
+# style is available (e.g. on SLES), then these just end up as empty strings.
+export UTILS_CFLAGS="%{?build_cflags:%{build_cflags}}%{!?build_cflags:%{?__global_cflags:%{__global_cflags}}}"
+export UTILS_LDFLAGS="%{?build_ldflags:%{build_ldflags}}%{!?build_ldflags:%{?__global_ldflags:%{__global_ldflags}}}"
+
+# RHEL7 on PPC64 needs __SANE_USERSPACE_TYPES__ defined so that __s64 and __u64
+# are presented to user-land as long long instead of long long. Without this it
+# will fail the format check whenever such a variable is printed.
+%if 0%{?rhel}
+%ifarch ppc64
+export UTILS_CFLAGS="${UTILS_CFLAGS} -D__SANE_USERSPACE_TYPES__=1"
+%endif
+%endif
+
+# Disable any hardening or annotation since this doesn't make sense for
+# kernel code, and reset "optflags" so that the vendor's overzealous flags don't
+# create build failures.
+%define optflags -g -O2 -Werror
+%undefine _annotated_build
+%undefine _hardened_build
+
+CONFIGURE_ARGS="%{?configure_args}"
+if [ -n "$CONFIGURE_ARGS" ]; then
+	# make sure %%kdir and %%kobjdir are not in the configure arguments
+	CONFIGURE_ARGS=$(echo $CONFIGURE_ARGS | sed -e 's/"\?--with-linux=[^ ][^ ]* \?//')
+	CONFIGURE_ARGS=$(echo $CONFIGURE_ARGS | sed -e 's/"\?--with-linux-obj=[^ ][^ ]* \?//')
+	# remove --with-kmp-moddir from configure arguments,
+	# it will be set --with-kmp-moddir=%%kmoddir
+	CONFIGURE_ARGS=$(echo $CONFIGURE_ARGS | sed -e 's/"\?--with-kmp-moddir=[^ ][^ ]* \?//')
+	# remove env variables from config cache built by initial configure,
+	# and create dedicated cache in temporary build directory
+	if [ -f "$CONFIG_CACHE_FILE" ]; then
+		TMP_CONFIG_CACHE="$(mktemp --tmpdir newconfig-XXXXXXXX.cache)"
+		sed -e "/ac_cv_env/d" \
+		    -e "/am_cv_CC_dependencies_compiler_type/d" \
+		    -e "/lb_cv_mpi_tests/d" \
+		       "$CONFIG_CACHE_FILE" > $TMP_CONFIG_CACHE
+		CONFIGURE_ARGS="$CONFIGURE_ARGS --cache-file=$TMP_CONFIG_CACHE"
+	fi
+fi
+
+# we need to eval "configure" because $CONFIGURE_ARGS could have a quoted
+# string in it which we don't want word splitted by the shell
+# also remove (build|host|target) options because they will be specified
+# inside $CONFIGURE_ARGS
+# kmod tools/scripts require "name" directory with kernel modules
+
+%if 0%{?rhel} >= 9
+%define _configure eval ./configure
+%define eval_configure %configure
+%else
+%define eval_configure %(echo -n '%configure' | sed -e 's#\./configure#eval ./configure#' -e 's/--\\(build\\|host\\|target\\)=[^ ][^ ]* //g')
+%endif
+
+%if %{with mpi}
+%if "%{mpi_name}" == "mpich"
+%{?_mpich_load}
+%endif
+%if "%{mpi_name}" == "openmpi"
+%{?_openmpi_load}
+%endif
+# mpi
+%endif
+
+%if %{with mofed}
+	o2ib_path=$(find /usr/src/ofa_kernel/ -type d -name ofed_scripts | xargs dirname)
+	if [ -z "$o2ib_path" ]; then
+		echo "ERROR: could not find OFED devel headers"
+		exit 1
+	fi
+	if [ $(echo $o2ib_path | wc -w) -ge 2 ]; then
+		echo "ERROR: multiple OFED versions installed"
+		exit 1
+	fi
+%endif
+
+%eval_configure $CONFIGURE_ARGS \
+	%{?with_lustre_tests:--enable-tests}%{!?with_lustre_tests:--disable-tests} \
+	%{?with_lustre_utils:--enable-utils}%{!?with_lustre_utils:--disable-utils} \
+	%{?with_lustre_modules:--enable-modules}%{!?with_lustre_modules:--disable-modules} \
+	%{!?with_shared:--disable-shared} \
+	%{!?with_static:--disable-static} \
+	%{!?with_lustre_iokit:--disable-iokit} \
+	%{!?with_ldiskfs:--disable-ldiskfs} \
+	%{!?with_servers:--disable-server} \
+	%{!?with_zfs:--without-zfs} \
+	%{!?with_snmp:--disable-snmp} \
+	%{!?with_gss:--disable-gss} \
+	%{!?with_gss_keyring:--disable-gss-keyring} \
+	%{!?with_manpages:--disable-manpages} \
+	%{!?with_systemd:--with-systemdsystemunitdir=no} \
+	%{?with_systemd:--with-systemdsystemunitdir=%{_unitdir}} \
+	%{?with_mofed:--with-o2ib=$o2ib_path} \
+	--with-linux=%{kdir} \
+	--with-linux-obj=%{kobjdir} \
+	--with-kmp-moddir=%{kmoddir}/%{name}
+
+%if %{with servers}
+if ! grep -q define[[:space:]]*HAVE_SERVER_SUPPORT config.h 2> /dev/null; then
+	echo "Error: Server Support configured but not found"
+	false
+fi
+%endif
+
+make %{?_smp_mflags} -s %{?make_args}
+
+%if %{with mpi}
+%if "%{mpi_name}" == "mpich"
+%{?_mpich_unload}
+%endif
+%if "%{mpi_name}" == "openmpi"
+%{?_openmpi_unload}
+%endif
+# mpi
+%endif
+
+%install
+
+%if %{with mpi}
+%if "%{mpi_name}" == "mpich"
+%{?_mpich_load}
+%endif
+%if "%{mpi_name}" == "openmpi"
+%{?_openmpi_load}
+%endif
+# mpi
+%endif
+
+make install DESTDIR=$RPM_BUILD_ROOT
+
+%if %{with lustre_modules}
+# RHEL's kernel_module_path macro expects that all the modules
+# in a kmod package will be in modules_fs_path/<sub packagename>
+# but Lustre installs all of the modules in a single pass into
+# a shared location.  Since this is a restriction imposed by
+# RHEL, we handle this here in the spec file rather than in
+# Lustre's build system.  This is not expected to bother SLES's
+# kernel_module_path macro.
+basemodpath=$RPM_BUILD_ROOT%{modules_fs_path}/%{name}
+%{__install} -D -m 0644 ${PWD}/Module.symvers %{buildroot}/Module.symvers
+%if %{with ldiskfs}
+mkdir -p $basemodpath-osd-ldiskfs/fs
+mv $basemodpath/fs/osd_ldiskfs.ko $basemodpath-osd-ldiskfs/fs/osd_ldiskfs.ko
+mv $basemodpath/fs/ldiskfs.ko $basemodpath-osd-ldiskfs/fs/ldiskfs.ko
+%endif
+%if %{with zfs}
+mkdir -p $basemodpath-osd-zfs/fs
+mv $basemodpath/fs/osd_zfs.ko $basemodpath-osd-zfs/fs/osd_zfs.ko
+%endif
+%if %{with lustre_tests}
+mkdir -p $basemodpath-tests/fs
+mv $basemodpath/fs/llog_test.ko $basemodpath-tests/fs/llog_test.ko
+mkdir -p $RPM_BUILD_ROOT%{_libdir}/lustre/tests/kernel/
+mv $basemodpath/fs/kinode.ko $RPM_BUILD_ROOT%{_libdir}/lustre/tests/kernel/
+%endif
+%endif
+
+%if %{without mpi}
+if [ -d $RPM_BUILD_ROOT%{_libdir}/openmpi ] ; then
+	rm -fr $RPM_BUILD_ROOT%{_libdir}/openmpi
+fi
+if [ -d $RPM_BUILD_ROOT%{_libdir}/mpich ] ; then
+	rm -fr $RPM_BUILD_ROOT%{_libdir}/mpich
+fi
+%endif
+
+:> lustre.files
+
+%if %{with servers} && %{with lustre_utils}
+# The .ha_v2 extension identifies the heartbeat resource agent as using
+# legacy syntax. Install a compatibility symlink to avoid conflicts when
+# newer-style agents are added.
+ln -s Lustre.ha_v2 $RPM_BUILD_ROOT%{_sysconfdir}/ha.d/resource.d/Lustre
+echo '%dir %{_sysconfdir}/ha.d' >>lustre.files
+echo '%dir %{_sysconfdir}/ha.d/resource.d' >>lustre.files
+echo '%{_sysconfdir}/ha.d/resource.d/Lustre.ha_v2' >>lustre.files
+echo '%{_sysconfdir}/ha.d/resource.d/Lustre' >>lustre.files
+%endif
+
+# systemd is on redhat, fedora, and suse
+%if %{with systemd}
+echo '%{_unitdir}/lnet.service' >>lustre.files
+%endif
+
+%if "%{_vendor}" == "redhat" || "%{_vendor}" == "openEuler"
+# The following scripts are Red Hat specific
+%if %{with servers}
+echo '%{_sysconfdir}/init.d/lustre' >>lustre.files
+echo '%{_sysconfdir}/sysconfig/lustre' >>lustre.files
+%if %{with gss_keyring}
+echo '%{_sysconfdir}/init.d/lsvcgss' >>lustre.files
+echo '%config(noreplace) %{_sysconfdir}/sysconfig/lsvcgss' >>lustre.files
+%endif
+%endif
+
+%if %{without systemd}
+echo '%{_sysconfdir}/init.d/lnet' >>lustre.files
+%endif
+%endif
+%if %{with gss_keyring}
+echo '%config(noreplace) %{_sysconfdir}/request-key.d/lgssc.conf' >>lustre.files
+%endif
+
+# fc18 needs 'x' permission for library files
+find $RPM_BUILD_ROOT -name \*.so -type f -exec chmod +x {} \;
+
+rm -f $RPM_BUILD_ROOT%{_libdir}/liblnetconfig.la
+%if %{with static}
+echo '%attr(-, root, root) %{_libdir}/liblnetconfig.a' >>lustre.files
+%endif
+%if %{with shared}
+echo '%attr(-, root, root) %{_libdir}/liblnetconfig.so' >>lustre-devel.files
+echo '%attr(-, root, root) %{_libdir}/liblnetconfig.so.*' >>lustre.files
+%endif
+
+%if %{with ldiskfs}
+echo '%{_libdir}/libiam.a' >>lustre.files
+%endif
+
+%if %{with snmp}
+mkdir -p $RPM_BUILD_ROOT/%{_libdir}/lustre/snmp
+echo '%{_libdir}/lustre/snmp' >>lustre.files
+%endif
+
+%if %{with lustre_utils}
+mkdir -p $RPM_BUILD_ROOT/%{_datadir}/lustre
+if [ -d $RPM_BUILD_ROOT%{_libdir}/lustre ] ; then
+	find $RPM_BUILD_ROOT%{_libdir}/lustre -name \*.la -type f -exec rm -f {} \;
+fi
+%endif
+
+echo '%{_prefix}/lib/firewalld/services/*.xml' >>lustre.files
+%if %{with lustre_modules}
+# mark modules executable for find-debuginfo.sh
+find $RPM_BUILD_ROOT/lib/modules -name \*.ko -type f -exec chmod u+x {} \;
+%endif
+
+rm -f $RPM_BUILD_ROOT%{_libdir}/liblustreapi.la
+
+%if %{with lustre_tests}
+:> lustre-tests.files
+%if %{with mpi}
+%if "%{mpi_name}" == "mpich"
+%{?_mpich_load}
+%endif
+%if "%{mpi_name}" == "openmpi"
+%{?_openmpi_load}
+%endif
+# mpi
+%endif
+echo '%dir %{_libdir}/lustre' >>lustre-tests.files
+echo '%dir %{_libdir}/lustre/tests' >>lustre-tests.files
+echo '%{_libdir}/lustre/tests/*' >>lustre-tests.files
+echo '%{_bindir}/mcreate' >>lustre-tests.files
+echo '%{_bindir}/munlink' >>lustre-tests.files
+echo '%{_bindir}/statx' >>lustre-tests.files
+echo '%{_sbindir}/wirecheck' >>lustre-tests.files
+echo '%{_sbindir}/wiretest' >>lustre-tests.files
+if [ -n "$MPI_BIN" ]; then
+	echo "$MPI_BIN/*" >>lustre-tests.files
+fi
+%if %{with lustre_tests_lutf}
+echo '%{_libdir}/lustre/tests/lutf/*' >>lustre-tests.files
+%endif
+%endif
+
+%if %{with lustre_tests_lutf}
+echo '%{_libdir}/lustre/tests/lutf/*' >>lustre-tests.files
+%endif
+
+%files devel -f lustre-devel.files
+%defattr(-,root,root)
+%{_libdir}/pkgconfig/lustre.pc
+%if %{with static}
+%{_libdir}/liblustreapi.a
+%endif
+%if %{with shared}
+%{_libdir}/liblustreapi.so
+%endif
+%{_includedir}/lustre
+%if %{with lustre_modules}
+%{_includedir}/linux/lnet
+%{_includedir}/linux/lustre
+%else
+%exclude %{_includedir}/linux/lnet
+%exclude %{_includedir}/linux/lustre
+%endif
+
+%files -f lustre.files
+%defattr(-,root,root)
+%{_sbindir}/*
+%if %{with lustre_tests}
+%exclude %{_sbindir}/wirecheck
+%exclude %{_sbindir}/wiretest
+%endif
+%if %{with zfs}
+%exclude %{_sbindir}/zfsobj2fid
+%endif
+%if %{with lustre_utils}
+%if %{with servers}
+%dir %{_libexecdir}/lustre
+%{_libexecdir}/lustre/lc_common
+%{_libexecdir}/lustre/haconfig
+%{_bindir}/lustre_req_history
+%{_bindir}/remove_changelog
+%{_bindir}/remove_updatelog
+%endif
+
+%{_bindir}/llobdstat
+%{_bindir}/lljobstat
+%{_bindir}/llstat
+%{_bindir}/plot-llstat
+%{_datadir}/lustre
+
+%{_bindir}/lfs
+%{_bindir}/lfs_migrate
+/sbin/mount.lustre
+%if %{with servers}
+/sbin/mount.lustre_tgt
+%endif
+/usr/share/bash-completion/completions
+%endif
+
+%if %{with manpages}
+%{_mandir}/man?/*
+%endif
+
+%if %{with shared}
+%{_libdir}/liblustreapi.so.*
+%endif
+%{_udevrulesdir}/99-lustre.rules
+%if %{with servers}
+%{_udevrulesdir}/99-lustre-server.rules
+%endif
+%if %{with zfs}
+%config(noreplace) %{_sysconfdir}/ldev.conf
+%endif
+%config(noreplace) %{_sysconfdir}/lnet.conf
+%config(noreplace) %{_sysconfdir}/modprobe.d/ko2iblnd.conf
+%if %{with lustre_utils}
+%config(noreplace) %{_sysconfdir}/lnet_routes.conf
+%endif
+%if %{with lustre_modules}
+%exclude /Module.symvers
+%if %{with shared}
+%if %{with ldiskfs}
+%if %{with lustre_utils}
+%files osd-ldiskfs-mount
+%defattr(-,root,root)
+%dir %{_libdir}/lustre
+%{_libdir}/lustre/mount_osd_ldiskfs.so
+%endif
+%endif
+%endif
+
+%if %{with shared}
+%if %{with zfs}
+%if %{with lustre_utils}
+%files osd-zfs-mount
+%defattr(-,root,root)
+%dir %{_libdir}/lustre
+%{_libdir}/lustre/mount_osd_zfs.so
+%{_sysconfdir}/zfs/zed.d/*
+%endif
+%endif
+%endif
+
+# with lustre_modules
+%endif
+
+%if %{with servers}
+%files resource-agents
+%defattr(0755,root,root)
+%dir %{_prefix}/lib/ocf
+%dir %{_prefix}/lib/ocf/resource.d
+%{_prefix}/lib/ocf/resource.d/lustre/
+%endif
+
+%if %{with lustre_tests}
+%files tests -f lustre-tests.files
+%defattr(-,root,root)
+%endif
+
+%if %{with lustre_iokit}
+%files -n lustre-iokit
+%defattr(-, root, root)
+%{_bindir}/iokit-config
+%{_bindir}/iokit-gather-stats
+
+%{_bindir}/iokit-libecho
+%{_bindir}/iokit-lstats
+%{_bindir}/iokit-parse-ior
+%{_bindir}/iokit-plot-obdfilter
+%{_bindir}/iokit-plot-ost
+%{_bindir}/iokit-plot-sgpdd
+%{_bindir}/ior-survey
+%{_bindir}/mds-survey
+%{_bindir}/obdfilter-survey
+%{_bindir}/ost-survey
+%{_bindir}/sgpdd-survey
+%{_bindir}/lst-survey
+%{_bindir}/lst.sh
+%doc lustre-iokit/ior-survey/README.ior-survey
+%doc lustre-iokit/mds-survey/README.mds-survey
+%doc lustre-iokit/obdfilter-survey/README.obdfilter-survey
+%doc lustre-iokit/ost-survey/README.ost-survey
+%doc lustre-iokit/sgpdd-survey/README.sgpdd-survey
+%doc lustre-iokit/stats-collect/README.iokit-lstats
+%doc lustre-iokit/lst-survey/README.lst-survey
+%endif
+
+%post
+%if %{with systemd}
+%systemd_post lnet.service
+%endif
+
+%preun
+%if %{with systemd}
+%systemd_preun lnet.service
+%endif
+
+%postun
+%if %{with systemd}
+%systemd_postun_with_restart lnet.service
+%endif
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+rm -rf %{_tmppath}/kmp

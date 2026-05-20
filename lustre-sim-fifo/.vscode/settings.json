@@ -1,0 +1,30 @@
+{
+    "files.associations": {
+        "lustre_idl.h": "c",
+        "array": "c",
+        "deque": "c",
+        "string": "c",
+        "unordered_map": "c",
+        "vector": "c",
+        "string_view": "c",
+        "initializer_list": "c",
+        "interval_tree.h": "c",
+        "cstdlib": "c",
+        "functional": "c",
+        "climits": "c",
+        "lockfree_list.h": "c",
+        "calclock.h": "c",
+        "compare": "c",
+        "cstdint": "c",
+        "cl_object.h": "c",
+        "libcfs.h": "c",
+        "obd_support.h": "c",
+        "dt_object.h": "c",
+        "lustre_sec.h": "c",
+        "ptlrpc_internal.h": "c",
+        "lustre_lib.h": "c",
+        "lustre_osc.h": "c",
+        "lustre_dlm.h": "c",
+        "osc_internal.h": "c"
+    }
+}

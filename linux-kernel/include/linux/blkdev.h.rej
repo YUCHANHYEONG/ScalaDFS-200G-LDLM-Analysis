@@ -1,0 +1,44 @@
+--- include/linux/blkdev.h
++++ include/linux/blkdev.h
+@@ -1551,7 +1551,6 @@ struct blk_integrity_iter {
+ 	const char		*disk_name;
+ };
+ 
+-typedef blk_status_t (integrity_processing_fn) (struct blk_integrity_iter *);
+ typedef void (integrity_prepare_fn) (struct request *);
+ typedef void (integrity_complete_fn) (struct request *, unsigned int);
+ 
+--- include/linux/blkdev.h
++++ include/linux/blkdev.h
+@@ -1502,7 +1502,9 @@ struct blk_integrity_iter {
+ 	sector_t		seed;
+ 	unsigned int		data_size;
+ 	unsigned short		interval;
++	RH_KABI_FILL_HOLE(unsigned short bi_idx)
+ 	const char		*disk_name;
++	RH_KABI_EXTEND(struct bio *bio)
+ };
+ 
+ struct blk_integrity_profile {
+--- include/linux/blkdev.h
++++ include/linux/blkdev.h
+@@ -1551,7 +1551,6 @@ struct blk_integrity_iter {
+ 	const char		*disk_name;
+ };
+ 
+-typedef blk_status_t (integrity_processing_fn) (struct blk_integrity_iter *);
+ typedef void (integrity_prepare_fn) (struct request *);
+ typedef void (integrity_complete_fn) (struct request *, unsigned int);
+ 
+--- include/linux/blkdev.h
++++ include/linux/blkdev.h
+@@ -1502,7 +1502,9 @@ struct blk_integrity_iter {
+ 	sector_t		seed;
+ 	unsigned int		data_size;
+ 	unsigned short		interval;
++	RH_KABI_FILL_HOLE(unsigned short bi_idx)
+ 	const char		*disk_name;
++	RH_KABI_EXTEND(struct bio *bio)
+ };
+ 
+ struct blk_integrity_profile {

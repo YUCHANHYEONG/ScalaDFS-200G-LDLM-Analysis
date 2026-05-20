@@ -1,0 +1,68 @@
+From ead0a400ed5f3621b2450a5da61c2295a224e002 Mon Sep 17 00:00:00 2001
+From: Shaun Tancheff <shaun.tancheff@hpe.com>
+Date: Wed, 2 Dec 2020 13:02:37 -0600
+Subject: [PATCH] ext4 ialloc uid gid and pass owner down
+
+pass inode timestamps at initial creation
+---
+ fs/ext4/ext4.h   |  8 ++++----
+ fs/ext4/ialloc.c | 11 ++++++++++-
+ fs/ext4/namei.c  | 13 +++++++++++--
+ 3 files changed, 25 insertions(+), 7 deletions(-)
+
+Index: linux-stage/fs/ext4/ialloc.c
+===================================================================
+--- linux-stage.orig/fs/ext4/ialloc.c
++++ linux-stage/fs/ext4/ialloc.c
+@@ -928,7 +928,7 @@ struct inode *__ext4_new_inode(struct us
+ 			       umode_t mode, const struct qstr *qstr,
+ 			       __u32 goal, uid_t *owner, __u32 i_flags,
+ 			       int handle_type, unsigned int line_no,
+-			       int nblocks)
++			       int nblocks, struct iattr *iattr)
+ {
+ 	struct super_block *sb;
+ 	struct buffer_head *inode_bitmap_bh = NULL;
+@@ -1308,6 +1308,15 @@ got:
+ 	if (err)
+ 		goto fail_drop;
+ 
++	if (iattr) {
++		if (iattr->ia_valid & ATTR_CTIME)
++			inode->i_ctime = iattr->ia_ctime;
++		if (iattr->ia_valid & ATTR_MTIME)
++			inode->i_mtime = iattr->ia_mtime;
++		if (iattr->ia_valid & ATTR_ATIME)
++			inode->i_atime = iattr->ia_atime;
++	}
++
+ 	/*
+ 	 * Since the encryption xattr will always be unique, create it first so
+ 	 * that it's less likely to end up in an external xattr block and
+Index: linux-stage/fs/ext4/namei.c
+===================================================================
+--- linux-stage.orig/fs/ext4/namei.c
++++ linux-stage/fs/ext4/namei.c
+@@ -3277,11 +3277,20 @@ static int ext4_add_nondir(handle_t *han
+  /* Return locked inode, then the caller can modify the inode's states/flags
+   * before others finding it. The caller should unlock the inode by itself. */
+ struct inode *ext4_create_inode(handle_t *handle, struct inode *dir, int mode,
+-				uid_t *owner)
++				struct iattr *iattr)
+ {
+ 	struct inode *inode;
++	uid_t owner[2] = {0, 0};
+ 
+-	inode = ext4_new_inode(handle, dir, mode, NULL, 0, owner, 0);
++	if (iattr) {
++		if (iattr->ia_valid & ATTR_UID)
++			owner[0] = from_kuid(&init_user_ns, iattr->ia_uid);
++		if (iattr->ia_valid & ATTR_GID)
++			owner[1] = from_kgid(&init_user_ns, iattr->ia_gid);
++	}
++
++	inode = __ext4_new_inode(handle, dir, mode, NULL, 0, owner, 0,
++				 0, 0, 0, iattr);
+ 	if (!IS_ERR(inode)) {
+ 		if (S_ISCHR(mode) || S_ISBLK(mode) || S_ISFIFO(mode)) {
+ #ifdef CONFIG_LDISKFS_FS_XATTR

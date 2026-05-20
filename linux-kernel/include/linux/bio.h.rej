@@ -1,0 +1,56 @@
+--- include/linux/bio.h
++++ include/linux/bio.h
+@@ -307,7 +307,8 @@ struct bio_integrity_payload {
+ 
+ 	struct bio_vec		*bip_vec;
+ 
+-	RH_KABI_RESERVE(1)
++	/* put after bip_vec as that is last externally-accessed bip_ field */
++	RH_KABI_USE(1, integrity_processing_fn *bip_verify_fn)
+ 	RH_KABI_RESERVE(2)
+ 
+ 	struct bio_vec		bip_inline_vecs[0];/* embedded bvec array */
+@@ -744,8 +745,15 @@ static inline bool bioset_initialized(st
+ 		bip_for_each_vec(_bvl, _bio->bi_integrity, _iter)
+ 
+ extern struct bio_integrity_payload *bio_integrity_alloc(struct bio *, gfp_t, unsigned int);
++extern struct bio_integrity_payload *bio_integrity_alloc_fn(struct bio *bio,
++							gfp_t gfp_mask,
++							unsigned int nr_vecs,
++							integrity_processing_fn *verify_fn);
+ extern int bio_integrity_add_page(struct bio *, struct page *, unsigned int, unsigned int);
+ extern bool bio_integrity_prep(struct bio *);
++extern bool bio_integrity_prep_fn(struct bio *bio,
++				integrity_processing_fn *generate_fn,
++				integrity_processing_fn *verify_fn);
+ extern void bio_integrity_advance(struct bio *, unsigned int);
+ extern void bio_integrity_trim(struct bio *);
+ extern int bio_integrity_clone(struct bio *, struct bio *, gfp_t);
+--- include/linux/bio.h
++++ include/linux/bio.h
+@@ -307,7 +307,8 @@ struct bio_integrity_payload {
+ 
+ 	struct bio_vec		*bip_vec;
+ 
+-	RH_KABI_RESERVE(1)
++	/* put after bip_vec as that is last externally-accessed bip_ field */
++	RH_KABI_USE(1, integrity_processing_fn *bip_verify_fn)
+ 	RH_KABI_RESERVE(2)
+ 
+ 	struct bio_vec		bip_inline_vecs[0];/* embedded bvec array */
+@@ -744,8 +745,15 @@ static inline bool bioset_initialized(st
+ 		bip_for_each_vec(_bvl, _bio->bi_integrity, _iter)
+ 
+ extern struct bio_integrity_payload *bio_integrity_alloc(struct bio *, gfp_t, unsigned int);
++extern struct bio_integrity_payload *bio_integrity_alloc_fn(struct bio *bio,
++							gfp_t gfp_mask,
++							unsigned int nr_vecs,
++							integrity_processing_fn *verify_fn);
+ extern int bio_integrity_add_page(struct bio *, struct page *, unsigned int, unsigned int);
+ extern bool bio_integrity_prep(struct bio *);
++extern bool bio_integrity_prep_fn(struct bio *bio,
++				integrity_processing_fn *generate_fn,
++				integrity_processing_fn *verify_fn);
+ extern void bio_integrity_advance(struct bio *, unsigned int);
+ extern void bio_integrity_trim(struct bio *);
+ extern int bio_integrity_clone(struct bio *, struct bio *, gfp_t);

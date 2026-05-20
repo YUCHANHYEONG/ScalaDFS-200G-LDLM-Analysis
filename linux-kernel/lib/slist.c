@@ -1,0 +1,103 @@
+/*
+ * Lock-less NULL terminated single linked list
+ *
+ * The basic atomic operation of this list is cmpxchg on long.  On
+ * architectures that don't have NMI-safe cmpxchg implementation, the
+ * list can NOT be used in NMI handlers.  So code that uses the list in
+ * an NMI handler should depend on CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG.
+ *
+ * Copyright 2010,2011 Intel Corp.
+ *   Author: Huang Ying <ying.huang@intel.com>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version
+ * 2 as published by the Free Software Foundation;
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+#include <linux/kernel.h>
+#include <linux/export.h>
+#include <linux/slist.h>
+
+/**
+ * slist_add_batch - add several linked entries in batch
+ * @new_first:	first entry in batch to be added
+ * @new_last:	last entry in batch to be added
+ * @head:	the head for your lock-less list
+ *
+ * Return whether list is empty before adding.
+ */
+bool slist_add_batch(struct list_head *new_first, struct list_head *new_last,
+                     struct slist_head *head)
+{
+    struct list_head *first;
+
+    do {
+        new_last->next = first = READ_ONCE(head->first);
+    } while (cmpxchg(&head->first, first, new_first) != first);
+
+    return !first;
+}
+EXPORT_SYMBOL(slist_add_batch);
+
+/**
+ * slist_del_first - delete the first entry of lock-less list
+ * @head:	the head for your lock-less list
+ *
+ * If list is empty, return NULL, otherwise, return the first entry
+ * deleted, this is the newest added one.
+ *
+ * Only one slist_del_first user can be used simultaneously with
+ * multiple slist_add users without lock.  Because otherwise
+ * slist_del_first, slist_add, slist_add (or slist_del_all, slist_add,
+ * slist_add) sequence in another user may change @head->first->next,
+ * but keep @head->first.  If multiple consumers are needed, please
+ * use slist_del_all or use lock between consumers.
+ */
+struct list_head *slist_del_first(struct slist_head *head)
+{
+    struct list_head *entry, *old_entry, *next;
+
+    entry = smp_load_acquire(&head->first);
+    for (;;) {
+        if (entry == NULL)
+            return NULL;
+        old_entry = entry;
+        next = READ_ONCE(entry->next);
+        entry = cmpxchg(&head->first, old_entry, next);
+        if (entry == old_entry)
+            break;
+    }
+
+    return entry;
+}
+EXPORT_SYMBOL(slist_del_first);
+
+/**
+ * slist_reverse_order - reverse order of a slist chain
+ * @head:	first item of the list to be reversed
+ *
+ * Reverse the order of a chain of slist entries and return the
+ * new first entry.
+ */
+struct list_head *slist_reverse_order(struct list_head *head)
+{
+    struct list_head *new_head = NULL;
+
+    while (head) {
+        struct list_head *tmp = head;
+        head = head->next;
+        tmp->next = new_head;
+        new_head = tmp;
+    }
+
+    return new_head;
+}
+EXPORT_SYMBOL(slist_reverse_order);

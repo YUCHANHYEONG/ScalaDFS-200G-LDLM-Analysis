@@ -1,0 +1,23 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/arch/x86/include/**",
+                "${workspaceFolder}/arch/x86/include/generated/**",
+                "${workspaceFolder}/include/drm-backport/**",
+                "${workspaceFolder}/include/**",
+                "${workspaceFolder}/arch/x86/include/uapi/**",
+                "${workspaceFolder}/arch/x86/include/generated/uapi/**",
+                "${workspaceFolder}/include/uapi/**",
+                "${workspaceFolder}/include/generated/uapi/**"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/clang",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "linux-gcc-x64"
+        }
+    ],
+    "version": 4
+}
