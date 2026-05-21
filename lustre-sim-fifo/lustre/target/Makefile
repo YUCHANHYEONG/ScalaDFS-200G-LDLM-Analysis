@@ -10,5 +10,5 @@ target_objs += tgt_mount.o
 EXTRA_DIST = $(target_objs:.o=.c) tgt_internal.h
 
 ifneq "$(MODULES)" "ptlrpc"
-include /root/workspace_ych/FAST27/sim-fifo-v3/lustre-sim-fifo/Rules
+include /root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo/Rules
 endif

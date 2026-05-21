@@ -4,4 +4,4 @@ osp-objs += lwp_dev.o osp_md_object.o osp_trans.o
 
 EXTRA_DIST = $(osp-objs:.o=.c) osp_internal.h
 
-include /root/workspace_ych/FAST27/sim-fifo-v3/lustre-sim-fifo/Rules
+include /root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo/Rules

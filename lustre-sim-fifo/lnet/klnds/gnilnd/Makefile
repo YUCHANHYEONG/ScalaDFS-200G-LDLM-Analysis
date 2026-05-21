@@ -6,4 +6,4 @@ EXTRA_POST_CFLAGS := -D"SVN_CODE_REV=KBUILD_STR(${SVN_CODE_REV})"
 
 EXTRA_DIST = $(kgnilnd-objs:%.o=%.c) gnilnd.h gnilnd_api_wrap.h
 
-include /root/workspace_ych/FAST27/sim-fifo-v3/lustre-sim-fifo/Rules
+include /root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo/Rules

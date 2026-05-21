@@ -20,6 +20,6 @@ ldiskfs_sources := $(ldiskfs_patched_sources)
 
 ldiskfs-objs := $(filter %.o,$(ldiskfs_sources:.c=.o))
 
-EXTRA_PRE_CFLAGS := -I/root/workspace_ych/FAST27/scaladfs-thread-model/linux-kernel/fs -I/root/workspace_ych/FAST27/sim-fifo-v3/lustre-sim-fifo/ldiskfs
+EXTRA_PRE_CFLAGS := -I/root/workspace_ych/FAST27/scaladfs-thread-model/linux-kernel/fs -I/root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo/ldiskfs
 
-include /root/workspace_ych/FAST27/sim-fifo-v3/lustre-sim-fifo/Rules
+include /root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo/Rules

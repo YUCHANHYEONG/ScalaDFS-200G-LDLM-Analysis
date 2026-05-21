@@ -36,6 +36,6 @@ EXTRA_DIST += $(nrs_server_objs:.o=.c)
 EXTRA_DIST += pack_server.c
 EXTRA_DIST += llog_server.c
 
-EXTRA_PRE_CFLAGS := -I/root/workspace_ych/FAST27/sim-fifo-v3/lustre-sim-fifo/lustre/ldlm -I/root/workspace_ych/FAST27/sim-fifo-v3/lustre-sim-fifo/lustre/target
+EXTRA_PRE_CFLAGS := -I/root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo/lustre/ldlm -I/root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo/lustre/target
 
-include /root/workspace_ych/FAST27/sim-fifo-v3/lustre-sim-fifo/Rules
+include /root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo/Rules

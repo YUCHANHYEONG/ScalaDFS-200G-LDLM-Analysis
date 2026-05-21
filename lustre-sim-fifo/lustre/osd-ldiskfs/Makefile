@@ -5,6 +5,6 @@ osd_ldiskfs-objs = osd_handler.o osd_oi.o osd_lproc.o osd_iam.o \
 
 osd_ldiskfs-objs += osd_integrity.o
 
-EXTRA_PRE_CFLAGS := -I/root/workspace_ych/FAST27/scaladfs-thread-model/linux-kernel/fs -I/root/workspace_ych/FAST27/sim-fifo-v3/lustre-sim-fifo -I/root/workspace_ych/FAST27/sim-fifo-v3/lustre-sim-fifo/ldiskfs
+EXTRA_PRE_CFLAGS := -I/root/workspace_ych/FAST27/scaladfs-thread-model/linux-kernel/fs -I/root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo -I/root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo/ldiskfs
 
-include /root/workspace_ych/FAST27/sim-fifo-v3/lustre-sim-fifo/Rules
+include /root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo/Rules

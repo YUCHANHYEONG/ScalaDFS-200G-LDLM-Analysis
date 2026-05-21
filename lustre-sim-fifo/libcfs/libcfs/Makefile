@@ -25,6 +25,6 @@ libcfs-all-objs := debug.o fail.o module.o tracefile.o \
 libcfs-objs := $(libcfs-linux-objs) $(libcfs-all-objs)
 #libcfs-objs += $(libcfs-crypto-objs)
 
-EXTRA_PRE_CFLAGS := -I/root/workspace_ych/FAST27/sim-fifo-v3/lustre-sim-fifo/lustre/../libcfs/libcfs
+EXTRA_PRE_CFLAGS := -I/root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo/lustre/../libcfs/libcfs
 
-include /root/workspace_ych/FAST27/sim-fifo-v3/lustre-sim-fifo/Rules
+include /root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo/Rules

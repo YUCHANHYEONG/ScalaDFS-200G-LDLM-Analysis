@@ -19,4 +19,4 @@ EXTRA_DIST := $(lustre-objs:.o=.c) xattr.c rw26.c super25.c acl.c
 EXTRA_DIST += llite_internal.h vvp_internal.h pcc.h
 EXTRA_DIST += foreign_symlink.h
 
-include /root/workspace_ych/FAST27/sim-fifo-v3/lustre-sim-fifo/Rules
+include /root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo/Rules

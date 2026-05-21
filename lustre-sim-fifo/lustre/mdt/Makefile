@@ -9,4 +9,4 @@ mdt-objs += mdt_hsm_cdt_agent.o
 mdt-objs += mdt_coordinator.o
 mdt-objs += mdt_batch.o
 
-include /root/workspace_ych/FAST27/sim-fifo-v3/lustre-sim-fifo/Rules
+include /root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo/Rules

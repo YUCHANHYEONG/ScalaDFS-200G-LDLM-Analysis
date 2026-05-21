@@ -7,8 +7,8 @@ directory=/mnt/client
 rw=randwrite
 bs=4k
 direct=0
-;numjobs=128
-numjobs=6
+numjobs=128
+;numjobs=6
 ;verify=meta
 ;time_based
 ;runtime=60
@@ -17,7 +17,7 @@ numjobs=6
 group_reporting
 
 [amd2]
-size=5G
+size=3G
 ;size=100M
 ;nrfiles=2
 ;ioengine=libaio

@@ -5,4 +5,4 @@ fid-objs := fid_request.o lproc_fid.o
 EXTRA_DIST = $(fid-objs:%.o=%.c) fid_internal.h
 EXTRA_DIST += fid_handler.c fid_store.c fid_lib.c
 
-include /root/workspace_ych/FAST27/sim-fifo-v3/lustre-sim-fifo/Rules
+include /root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo/Rules

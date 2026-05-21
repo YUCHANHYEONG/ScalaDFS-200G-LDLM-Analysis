@@ -5,4 +5,4 @@ ofd-objs += lproc_ofd.o ofd_dlm.o ofd_lvb.o ofd_access_log.o
 
 EXTRA_DIST = $(ofd-objs:%.o=%.c) ofd_internal.h
 
-include /root/workspace_ych/FAST27/sim-fifo-v3/lustre-sim-fifo/Rules
+include /root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo/Rules

@@ -1012,10 +1012,8 @@ static int osc_io_fsync_start_internal(const struct lu_env *env,
 
 	ktget(&localclock[0]);
 	//printk("[%s] pid=%d ych_1\n", __func__, current->pid);
-	result = fsync_osc_cache_writeback_range(env, osc, start, end, 0,
+	result = osc_cache_writeback_range(env, osc, start, end, 0,
 					   fio->fi_mode == CL_FSYNC_DISCARD);
-	//result = osc_cache_writeback_range(env, osc, start, end, 0,
-	//				   fio->fi_mode == CL_FSYNC_DISCARD);
 	ktget(&localclock[1]);
 	ktput(localclock, osc_cache_writeback_range);
 	if (result > 0) {
@@ -1030,7 +1028,6 @@ static int osc_io_fsync_start_internal(const struct lu_env *env,
 		 * to be written osc by osc. However, we usually start
 		 * writeback before CL_FSYNC_ALL so this won't have any real
 		 * problem. */
-		printk("[%s] pid=%d ych_2\n", __func__, current->pid);
 		rc = osc_cache_wait_range(env, osc, start, end);
 		if (result == 0)
 			result = rc;

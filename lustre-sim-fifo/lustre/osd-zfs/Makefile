@@ -11,4 +11,4 @@ EXTRA_PRE_CFLAGS += -I/include/os/linux/spl -I/include/os/linux/zfs
 EXTRA_PRE_CFLAGS += -I -I/include
 EXTRA_PRE_CFLAGS += -I/include/spl
 
-include /root/workspace_ych/FAST27/sim-fifo-v3/lustre-sim-fifo/Rules
+include /root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo/Rules

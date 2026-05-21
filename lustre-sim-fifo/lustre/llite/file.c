@@ -4988,7 +4988,7 @@ int ll_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	struct ptlrpc_request *req;
 	ktime_t kstart = ktime_get();
 	int rc, err;
-	printk("[%s] pid=%d start!!!!\n", __func__, current->pid);
+	//printk("[%s] pid=%d start!!!!\n", __func__, current->pid);
 
 	ENTRY;
 

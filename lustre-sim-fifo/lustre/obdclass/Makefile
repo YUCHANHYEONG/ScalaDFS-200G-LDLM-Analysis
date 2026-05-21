@@ -43,4 +43,4 @@ EXTRA_DIST += md_attrs.c
 EXTRA_DIST += obdo_server.c
 EXTRA_DIST += scrub.c
 
-include /root/workspace_ych/FAST27/sim-fifo-v3/lustre-sim-fifo/Rules
+include /root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo/Rules

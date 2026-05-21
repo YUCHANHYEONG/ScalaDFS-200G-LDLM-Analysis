@@ -15,4 +15,4 @@ mdc-objs := $(mdc-objs-y)
 
 EXTRA_DIST = $(mdc-objs:.o=.c) mdc_acl.c mdc_internal.h
 
-include /root/workspace_ych/FAST27/sim-fifo-v3/lustre-sim-fifo/Rules
+include /root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo/Rules

@@ -3,4 +3,4 @@ osc-objs := osc_request.o lproc_osc.o osc_dev.o osc_object.o osc_page.o osc_lock
 
 EXTRA_DIST = $(osc-objs:%.o=%.c) osc_internal.h
 
-include /root/workspace_ych/FAST27/sim-fifo-v3/lustre-sim-fifo/Rules
+include /root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo/Rules

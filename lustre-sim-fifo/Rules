@@ -4,7 +4,7 @@
 #
 # MODULES := <module-name>
 # <module-name>-objs := file1.o file2.o file3.o
-# include /root/workspace_ych/FAST27/sim-fifo-v3/lustre-sim-fifo/Rules
+# include /root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo/Rules
 #
 # and autoMakefile.am:
 #
@@ -31,7 +31,7 @@ else
 include /root/workspace_ych/FAST27/scaladfs-thread-model/linux-kernel/.config
 
 EXTRA_CFLAGS := $(EXTRA_PRE_CFLAGS)
-EXTRA_CFLAGS += -include /root/workspace_ych/FAST27/sim-fifo-v3/lustre-sim-fifo/undef.h -include /root/workspace_ych/FAST27/sim-fifo-v3/lustre-sim-fifo/config.h  -g -I/root/workspace_ych/FAST27/sim-fifo-v3/lustre-sim-fifo/libcfs/include -I/root/workspace_ych/FAST27/sim-fifo-v3/lustre-sim-fifo/libcfs/include/libcfs -I/root/workspace_ych/FAST27/sim-fifo-v3/lustre-sim-fifo/lnet/include/uapi -I/root/workspace_ych/FAST27/sim-fifo-v3/lustre-sim-fifo/lnet/include -I/root/workspace_ych/FAST27/sim-fifo-v3/lustre-sim-fifo/lustre/include/uapi -I/root/workspace_ych/FAST27/sim-fifo-v3/lustre-sim-fifo/lustre/include -Wno-format-truncation -Wno-stringop-truncation -Wno-stringop-overflow -g -O2 -Wall -Werror 
+EXTRA_CFLAGS += -include /root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo/undef.h -include /root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo/config.h  -g -I/root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo/libcfs/include -I/root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo/libcfs/include/libcfs -I/root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo/lnet/include/uapi -I/root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo/lnet/include -I/root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo/lustre/include/uapi -I/root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo/lustre/include -Wno-format-truncation -Wno-stringop-truncation -Wno-stringop-overflow -g -O2 -Wall -Werror 
 EXTRA_CFLAGS += $(EXTRA_POST_CFLAGS)
 
 KBUILD_EXTRA_SYMBOLS += 

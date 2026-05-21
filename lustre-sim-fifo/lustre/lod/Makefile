@@ -4,4 +4,4 @@ lod-objs := lod_dev.o lod_lov.o lproc_lod.o lod_pool.o lod_object.o lod_qos.o	\
 
 EXTRA_DIST = $(lod-objs:.o=.c) lod_internal.h
 
-include /root/workspace_ych/FAST27/sim-fifo-v3/lustre-sim-fifo/Rules
+include /root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo/Rules

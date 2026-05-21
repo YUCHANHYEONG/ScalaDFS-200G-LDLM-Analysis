@@ -12,4 +12,4 @@ lquota-objs := $(quota-objs) $(qsd-objs) $(qmt-objs)
 EXTRA_DIST := $(lquota-objs:%.o=%.c)
 EXTRA_DIST += lquota_internal.h qsd_internal.h qmt_internal.h
 
-include /root/workspace_ych/FAST27/sim-fifo-v3/lustre-sim-fifo/Rules
+include /root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo/Rules

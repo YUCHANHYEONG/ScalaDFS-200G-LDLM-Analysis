@@ -1007,24 +1007,39 @@ static int osc_extent_wait(const struct lu_env *env, struct osc_extent *ext,
 	if (rc == 1)
 		osc_extent_release(env, ext);
 
-	/* wait for the extent until its state becomes @state */
-	rc = wait_event_idle_timeout(ext->oe_waitq,
-				     smp_load_acquire(&ext->oe_state) == state,
-				     //cfs_time_seconds(30));
-				     cfs_time_seconds(600));
-	if (rc == 0) {
-		OSC_EXTENT_DUMP(D_ERROR, ext,
-			"%s: wait ext to %u timedout, recovery in progress?\n",
-			cli_name(osc_cli(obj)), state);
+	/* taehwan add */
+	if (ext->oe_fsync_wait)
+		osc_io_unplug(env, osc_cli(obj), obj);
 
-		wait_event_idle(ext->oe_waitq,
-				smp_load_acquire(&ext->oe_state) == state);
-	}
+	wait_event_idle(ext->oe_waitq,
+			smp_load_acquire(&ext->oe_state) == state);
+
 	if (ext->oe_rc < 0)
 		rc = ext->oe_rc;
 	else
 		rc = 0;
 	RETURN(rc);
+
+	/* taehwan add */
+//	
+//	/* wait for the extent until its state becomes @state */
+//	rc = wait_event_idle_timeout(ext->oe_waitq,
+//				     smp_load_acquire(&ext->oe_state) == state,
+//				     //cfs_time_seconds(30));
+//				     cfs_time_seconds(600));
+//	if (rc == 0) {
+//		OSC_EXTENT_DUMP(D_ERROR, ext,
+//			"%s: wait ext to %u timedout, recovery in progress?\n",
+//			cli_name(osc_cli(obj)), state);
+//
+//		wait_event_idle(ext->oe_waitq,
+//				smp_load_acquire(&ext->oe_state) == state);
+//	}
+//	if (ext->oe_rc < 0)
+//		rc = ext->oe_rc;
+//	else
+//		rc = 0;
+//	RETURN(rc);
 }
 
 /**

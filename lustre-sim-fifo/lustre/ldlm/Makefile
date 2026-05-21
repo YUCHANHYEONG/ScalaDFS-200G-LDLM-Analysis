@@ -10,5 +10,5 @@ ldlm_objs += ldlm_pool.o ldlm_reclaim.o
 EXTRA_DIST = $(ldlm_objs:.o=.c) $(ldlm_server_objs:.o=.c) ldlm_internal.h
 
 ifneq "$(MODULES)" "ptlrpc"
-include /root/workspace_ych/FAST27/sim-fifo-v3/lustre-sim-fifo/Rules
+include /root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo/Rules
 endif

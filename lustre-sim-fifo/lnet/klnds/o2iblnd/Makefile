@@ -5,4 +5,4 @@ ko2iblnd-objs := o2iblnd.o o2iblnd_cb.o o2iblnd_modparams.o
 # any in-kernel OFED sources
 NOSTDINC_FLAGS +=   -I/root/workspace_ych/FAST27/scaladfs-thread-model/linux-kernel/include -I/root/workspace_ych/FAST27/scaladfs-thread-model/linux-kernel/include/uapi
 
-include /root/workspace_ych/FAST27/sim-fifo-v3/lustre-sim-fifo/Rules
+include /root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo/Rules
