@@ -1011,8 +1011,8 @@ static int osc_extent_wait(const struct lu_env *env, struct osc_extent *ext,
 	if (ext->oe_fsync_wait)
 		osc_io_unplug(env, osc_cli(obj), obj);
 
-	wait_event_idle(ext->oe_waitq,
-			smp_load_acquire(&ext->oe_state) == state);
+//	wait_event_idle(ext->oe_waitq,
+//			smp_load_acquire(&ext->oe_state) == state);
 
 	if (ext->oe_rc < 0)
 		rc = ext->oe_rc;

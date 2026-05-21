@@ -5052,7 +5052,7 @@ int ll_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	if (!rc)
 		ll_stats_ops_tally(ll_i2sbi(inode), LPROC_LL_FSYNC,
 				   ktime_us_delta(ktime_get(), kstart));
-	printk("[%s] pid=%d end!!!!\n", __func__, current->pid);
+	//printk("[%s] pid=%d end!!!!\n", __func__, current->pid);
 	RETURN(rc);
 }
 

@@ -9,7 +9,7 @@ bs=4k
 direct=0
 numjobs=128
 ;numjobs=6
-verify=meta
+;verify=meta
 ;time_based
 ;runtime=60
 ;runtime=40
@@ -27,4 +27,4 @@ size=3G
 
 ;end_fsync=1
 fsync_on_close=1
-;fsync=100
+fsync=10000
