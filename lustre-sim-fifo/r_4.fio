@@ -9,7 +9,7 @@ bs=4k
 direct=0
 numjobs=128
 ;numjobs=6
-;verify=meta
+verify=meta
 ;time_based
 ;runtime=60
 ;runtime=40
