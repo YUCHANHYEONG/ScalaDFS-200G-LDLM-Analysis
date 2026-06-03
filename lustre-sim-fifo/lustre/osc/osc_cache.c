@@ -914,6 +914,8 @@ int osc_extent_finish_cal(const struct lu_env *env, struct osc_extent *ext,
 	RETURN(0);
 }
 
+//atomic64_t ych_osc_extent_finish_cnt = ATOMIC64_INIT(0);
+
 /**
  * Called when IO is finished to an extent.
  */
@@ -928,7 +930,10 @@ int osc_extent_finish(const struct lu_env *env, struct osc_extent *ext,
 	int blocksize = cli->cl_import->imp_obd->obd_osfs.os_bsize ? : 4096;
 	loff_t last_off = 0;
 	int last_count = -1;
+	//s64 cnt;
 	ENTRY;
+	//cnt = atomic64_inc_return(&ych_osc_extent_finish_cnt);
+	//printk("[%s] start! from %ps cnt=%llu\n", __func__, __builtin_return_address(0), cnt);
 
 	OSC_EXTENT_DUMP(D_CACHE, ext, "extent finished.\n");
 
@@ -1010,36 +1015,31 @@ static int osc_extent_wait(const struct lu_env *env, struct osc_extent *ext,
 	/* taehwan add */
 	if (ext->oe_fsync_wait)
 		osc_io_unplug(env, osc_cli(obj), obj);
+	else
+		printk("CHECK HERE!!!\n");
 
+	/* taehwan add */
 //	wait_event_idle(ext->oe_waitq,
 //			smp_load_acquire(&ext->oe_state) == state);
+
+	/* wait for the extent until its state becomes @state */
+	rc = wait_event_idle_timeout(ext->oe_waitq,
+				     smp_load_acquire(&ext->oe_state) == state,
+				     cfs_time_seconds(600));
+	if (rc == 0) {
+		OSC_EXTENT_DUMP(D_ERROR, ext,
+			"%s: wait ext to %u timedout, recovery in progress?\n",
+			cli_name(osc_cli(obj)), state);
+
+		wait_event_idle(ext->oe_waitq,
+				smp_load_acquire(&ext->oe_state) == state);
+	}
 
 	if (ext->oe_rc < 0)
 		rc = ext->oe_rc;
 	else
 		rc = 0;
 	RETURN(rc);
-
-	/* taehwan add */
-//	
-//	/* wait for the extent until its state becomes @state */
-//	rc = wait_event_idle_timeout(ext->oe_waitq,
-//				     smp_load_acquire(&ext->oe_state) == state,
-//				     //cfs_time_seconds(30));
-//				     cfs_time_seconds(600));
-//	if (rc == 0) {
-//		OSC_EXTENT_DUMP(D_ERROR, ext,
-//			"%s: wait ext to %u timedout, recovery in progress?\n",
-//			cli_name(osc_cli(obj)), state);
-//
-//		wait_event_idle(ext->oe_waitq,
-//				smp_load_acquire(&ext->oe_state) == state);
-//	}
-//	if (ext->oe_rc < 0)
-//		rc = ext->oe_rc;
-//	else
-//		rc = 0;
-//	RETURN(rc);
 }
 
 /**

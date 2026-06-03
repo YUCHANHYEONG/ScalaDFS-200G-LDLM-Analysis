@@ -2216,6 +2216,7 @@ int ptlrpc_check_set_internal(const struct lu_env *env, struct ptlrpc_request_se
 		 * phase is.
 		 */
 		if (unlikely(req->rq_allow_intr && req->rq_intr)) {
+			//printk("[%s] ych-1\n", __func__);
 			req->rq_status = -EINTR;
 			ptlrpc_rqphase_move(req, RQ_PHASE_INTERPRET);
 
@@ -2317,6 +2318,7 @@ int ptlrpc_check_set_internal(const struct lu_env *env, struct ptlrpc_request_se
 			if (req->rq_no_resend) {
 				if (req->rq_status == 0)
 					req->rq_status = -EIO;
+				//printk("[%s] ych-2\n", __func__);
 				ptlrpc_rqphase_move(req, RQ_PHASE_INTERPRET);
 				GOTO(interpret, req->rq_status);
 			} else {
@@ -2335,6 +2337,7 @@ int ptlrpc_check_set_internal(const struct lu_env *env, struct ptlrpc_request_se
 			spin_unlock(&req->rq_lock);
 			if (req->rq_status == 0)
 				req->rq_status = -EIO;
+			//printk("[%s] ych-3\n", __func__);
 			ptlrpc_rqphase_move(req, RQ_PHASE_INTERPRET);
 			GOTO(interpret, req->rq_status);
 		}
@@ -2352,6 +2355,7 @@ int ptlrpc_check_set_internal(const struct lu_env *env, struct ptlrpc_request_se
 		if (req->rq_intr && (req->rq_timedout || req->rq_waiting ||
 				     req->rq_wait_ctx)) {
 			req->rq_status = -EINTR;
+			//printk("[%s] ych-4\n", __func__);
 			ptlrpc_rqphase_move(req, RQ_PHASE_INTERPRET);
 			GOTO(interpret, req->rq_status);
 		}
@@ -2538,6 +2542,7 @@ int ptlrpc_check_set_internal(const struct lu_env *env, struct ptlrpc_request_se
 			 * an error, and therefore the bulk will never arrive.
 			 */
 			if (!req->rq_bulk || req->rq_status < 0) {
+				//printk("[%s] ych-5\n", __func__);
 				ptlrpc_rqphase_move(req, RQ_PHASE_INTERPRET);
 				GOTO(interpret, req->rq_status);
 			}
@@ -2592,6 +2597,11 @@ interpret:
 		 * finished.
 		 */
 		LASSERT(!req->rq_receiving_reply);
+		//if (req->rq_interpret_reply == NULL) {
+		//	printk(KERN_ERR"[%s] ych-1\n", __func__);
+		//} else {
+		//	printk("[%s] cb=%ps\n", __func__, req->rq_interpret_reply);
+		//}
 		ktget(&localclock[0]);
 		ptlrpc_req_interpret(env, req, req->rq_status);
 		ktget(&localclock[1]);
@@ -2716,6 +2726,7 @@ int application_check_set(const struct lu_env *env, struct ptlrpc_request_set *s
 	int force_timer_recalc = 0;
 	ktime_t localclock[2];
 	ktime_t forclock[2];
+	//printk("[%s] start!\n", __func__);
 
 	ENTRY;
 	ktget(&localclock[0]);
@@ -2955,9 +2966,10 @@ int application_check_set(const struct lu_env *env, struct ptlrpc_request_set *s
 			if (req->rq_timedout || req->rq_resend ||
 			    req->rq_waiting || req->rq_wait_ctx) {
 				int status;
-				pr_info("req->rq_timedout || req->rq_resend || req->rq_waiting || req->rq_wait_ctx\n");
+				//pr_info("req->rq_timedout || req->rq_resend || req->rq_waiting || req->rq_wait_ctx\n");
 
 				if (!ptlrpc_unregister_reply(req, 1)) {
+					//printk("[%s] ych_1\n", __func__);
 					ptlrpc_unregister_bulk(req, 1);
 					ktget(&localclock[1]);
 					ktput(localclock, application_check_set_middle_1);
@@ -2971,6 +2983,7 @@ int application_check_set(const struct lu_env *env, struct ptlrpc_request_set *s
 					 * put on delay list - only if we wait
 					 * recovery finished - before send
 					 */
+					//printk("[%s] ych_2\n", __func__);
 					list_move_tail(&req->rq_list,
 						       &imp->imp_delayed_list);
 					spin_unlock(&imp->imp_lock);
@@ -2981,6 +2994,7 @@ int application_check_set(const struct lu_env *env, struct ptlrpc_request_set *s
 
 				if (status != 0)  {
 					req->rq_status = status;
+					//printk("[%s] ych_3\n", __func__);
 					ptlrpc_rqphase_move(req,
 							    RQ_PHASE_INTERPRET);
 					spin_unlock(&imp->imp_lock);
@@ -2993,6 +3007,7 @@ int application_check_set(const struct lu_env *env, struct ptlrpc_request_set *s
 				    !req->rq_wait_ctx &&
 				    imp->imp_generation !=
 				    imp->imp_initiated_at) {
+					//printk("[%s] ych_4\n", __func__);
 					req->rq_status = -ENOTCONN;
 					ptlrpc_rqphase_move(req,
 							    RQ_PHASE_INTERPRET);
@@ -3007,6 +3022,7 @@ int application_check_set(const struct lu_env *env, struct ptlrpc_request_set *s
 				 */
 				if (ktime_get_real_seconds() < (req->rq_sent + 1)
 				    && req->rq_net_err && req->rq_timedout) {
+					//printk("[%s] ych_5\n", __func__);
 
 					DEBUG_REQ(D_INFO, req,
 						  "throttle request");

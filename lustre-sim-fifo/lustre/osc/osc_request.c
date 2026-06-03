@@ -490,6 +490,8 @@ static int osc_sync_interpret(const struct lu_env *env,
 	unsigned long valid = 0;
 	struct cl_object *obj;
 	ENTRY;
+	//printk("[%s] req=%p status=%d phase=%d xid=%llu pid=%d comm=%s\n",
+	//		__func__, req, req->rq_status, req->rq_phase, req->rq_xid, current->pid, current->comm);
 
 	if (rc != 0)
 		GOTO(out, rc);
@@ -555,6 +557,8 @@ int osc_sync_base(struct osc_object *obj, struct obdo *oa,
 	fa->fa_cookie = cookie;
 
 	ptlrpc_set_add_req(rqset, req);
+	//printk("[%s] add OST_SYNC req=%p rqset=%p xid=%llu pid=%d comm=%s\n", 
+	//		__func__, req, rqset, req->rq_xid, current->pid, current->comm);
 
 	RETURN (0);
 }
@@ -2705,7 +2709,7 @@ free:
 	osc_wake_cache_waiters(cli);
 	spin_unlock(&cli->cl_loi_list_lock);
 
-	// osc_io_unplug(env, cli, NULL);
+	osc_io_unplug(env, cli, NULL);
 	RETURN(rc);
 }
 

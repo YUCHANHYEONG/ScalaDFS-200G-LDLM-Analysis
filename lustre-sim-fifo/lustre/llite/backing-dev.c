@@ -311,6 +311,7 @@ static int lustre_wb_init(struct bdi_writeback *wb, struct backing_dev_info *bdi
 {
 	int i, err;
 	struct bdi_writeback_rh *rh;
+	printk("[%s] start! from %ps\n", __func__, __builtin_return_address(0));
 
 	memset(wb, 0, sizeof(*wb));
 

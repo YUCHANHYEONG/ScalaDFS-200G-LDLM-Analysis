@@ -535,6 +535,8 @@ static int osc_async_upcall(void *a, int rc)
 	struct osc_async_cbargs *args = a;
 
         args->opc_rc = rc;
+	//printk("[%s] rc=%d args=%p complete sync pid=%d comm=%s\n",
+	//		__func__, rc, args, current->pid, current->comm);
 	complete(&args->opc_sync);
         return 0;
 }
@@ -969,6 +971,8 @@ int osc_fsync_ost(const struct lu_env *env, struct osc_object *obj,
 	struct osc_async_cbargs *cbargs = &oio->oi_cbarg;
 	int rc = 0;
 	ENTRY;
+	//printk("[%s] submit OST_SYNC obj=%p start=%llu end=%llu pid=%d comm=%s\n",
+	//		__func__, obj, fio->fi_start, fio->fi_end, current->pid, current->comm);
 
 	memset(oa, 0, sizeof(*oa));
 	oa->o_oi = loi->loi_oi;
@@ -1073,17 +1077,22 @@ void osc_io_fsync_end_internal(const struct lu_env *env,
 	pgoff_t end   = fio->fi_end >> PAGE_SHIFT;
 	int result = 0;
 	ktime_t localclock[2];
+	//printk("[%s] start! pid=%d comm=%s mode=%d\n", __func__, current->pid, current->comm, fio->fi_mode);
 
 	if (fio->fi_mode == CL_FSYNC_LOCAL) {
+		//printk("[FSYNC_LOCAL_WAIT] pid=%d\n", current->pid);
 		ktget(&localclock[0]);
 		result = osc_cache_wait_range(env, cl2osc(obj), start, end);
 		ktget(&localclock[1]);
 		ktput(localclock, osc_cache_wait_range);
+		//printk("[FSYNC_LOCAL_DONE] pid=%d\n", current->pid);
 	} else if (fio->fi_mode == CL_FSYNC_ALL) {
 		struct osc_io           *oio    = cl2osc_io(env, slice);
 		struct osc_async_cbargs *cbargs = &oio->oi_cbarg;
+		//printk("[FSYNC_ALL_WAIT] pid=%d\n", current->pid);
 		ktget(&localclock[0]);
 		wait_for_completion(&cbargs->opc_sync);
+		//printk("[FSYNC_ALL_DONE] pid=%d\n", current->pid);
 		if (result == 0)
 			result = cbargs->opc_rc;
 		ktget(&localclock[1]);

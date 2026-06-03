@@ -2809,6 +2809,7 @@ void lustre_wb_workfn(struct work_struct *work)
 						struct bdi_writeback, dwork);
 	long pages_written;
 	ktime_t stopwatch[2];
+	printk("[%s] start! from %ps\n", __func__, __builtin_return_address(0));
 
 	pr_info("Flusher \n");
 
