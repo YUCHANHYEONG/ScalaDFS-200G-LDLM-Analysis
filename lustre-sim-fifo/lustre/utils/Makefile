@@ -95,7 +95,7 @@ POST_UNINSTALL = :
 build_triplet = x86_64-pc-linux-gnu
 host_triplet = x86_64-pc-linux-gnu
 target_triplet = x86_64-pc-linux-gnu
-EXTRA_PROGRAMS = wirecheck$(EXEEXT)
+#EXTRA_PROGRAMS = wirecheck$(EXEEXT)
 ##am__append_1 = gss/sk_utils.c gss/sk_utils.h
 ##am__append_2 = -lkeyutils -lcrypto -lssl
 ##am__append_3 = -lkeyutils
@@ -108,7 +108,7 @@ sbin_PROGRAMS = lctl$(EXEEXT) l_getidentity$(EXEEXT) \
 	llsom_sync$(EXEEXT) l_foreign_symlink$(EXEEXT) \
 	$(am__EXEEXT_2) $(am__EXEEXT_3) $(am__EXEEXT_4) \
 	$(am__EXEEXT_5)
-am__append_5 = wiretest
+#am__append_5 = wiretest
 #am__append_6 = mkfs.lustre tunefs.lustre lr_reader lshowmount \
 #		 ll_decode_filter_fid llog_reader l_tunedisk \
 #		 ofd_access_log_reader check_iam
@@ -143,7 +143,7 @@ am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(rootsbindir)" \
 	"$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)" \
 	"$(DESTDIR)$(pkgconfigdir)"
 #am__EXEEXT_1 = mount.lustre_tgt$(EXEEXT)
-am__EXEEXT_2 = wiretest$(EXEEXT)
+#am__EXEEXT_2 = wiretest$(EXEEXT)
 #am__EXEEXT_3 = mkfs.lustre$(EXEEXT) \
 #	tunefs.lustre$(EXEEXT) \
 #	lr_reader$(EXEEXT) \
@@ -722,7 +722,7 @@ LIBREADLINE =
 LIBS = -lkeyutils 
 LIBTOOL = $(SHELL) $(top_builddir)/libtool
 LINUX = /root/workspace_ych/FAST27/scaladfs-thread-model/linux-kernel
-LINUXRELEASE = 4.18.0scaladfs-rcu-anal
+LINUXRELEASE = 4.18.0scaladfs-crashfix-v1
 LINUX_CONFIG = /root/workspace_ych/FAST27/scaladfs-thread-model/linux-kernel/.config
 LINUX_OBJ = /root/workspace_ych/FAST27/scaladfs-thread-model/linux-kernel
 LIPO = 
@@ -777,7 +777,7 @@ PYTHON_SITE_PKG = /usr/lib/python3.6/site-packages
 PYTHON_VERSION_CHECK = yes
 RANLIB = ranlib
 RPMBUILD = /usr/bin/rpmbuild
-RPMBUILD_BINARY_ARGS =  --define "configure_args  '--disable-gss' '--disable-crypto' '--disable-llcrypt' 'PKG_CONFIG_PATH=/usr/local/gromacs/lib64/pkgconfig'" --define "kdir /root/workspace_ych/FAST27/scaladfs-thread-model/linux-kernel" --define "kobjdir /root/workspace_ych/FAST27/scaladfs-thread-model/linux-kernel" --without servers --without ldiskfs --without gss --without crypto --without snmp --without shared
+RPMBUILD_BINARY_ARGS =  --define "configure_args  '--disable-gss' '--disable-crypto' '--disable-llcrypt' 'PKG_CONFIG_PATH=/usr/local/gromacs/lib64/pkgconfig'" --define "kdir /root/workspace_ych/FAST27/scaladfs-thread-model/linux-kernel" --define "kobjdir /root/workspace_ych/FAST27/scaladfs-thread-model/linux-kernel" --without lustre_tests --without servers --without ldiskfs --without gss --without crypto --without snmp --without shared
 SED = /usr/bin/sed
 SELINUX = -lselinux
 SET_MAKE = 
@@ -806,7 +806,7 @@ abs_builddir = /root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo/
 abs_srcdir = /root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo/lustre/utils
 abs_top_builddir = /root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo
 abs_top_srcdir = /root/workspace_ych/FAST27/scaladfs-thread-model/lustre-sim-fifo
-ac_configure_args =  '--with-linux=/root/workspace_ych/FAST27/scaladfs-thread-model/linux-kernel' '--disable-server' '--disable-ldiskfs' '--disable-gss' '--disable-shared' '--disable-crypto' '--disable-llcrypt' 'PKG_CONFIG_PATH=/usr/local/gromacs/lib64/pkgconfig'
+ac_configure_args =  '--with-linux=/root/workspace_ych/FAST27/scaladfs-thread-model/linux-kernel' '--disable-server' '--disable-ldiskfs' '--disable-gss' '--disable-shared' '--disable-crypto' '--disable-llcrypt' '--disable-tests' 'PKG_CONFIG_PATH=/usr/local/gromacs/lib64/pkgconfig'
 ac_ct_AR = ar
 ac_ct_CC = gcc
 ac_ct_DUMPBIN = 
@@ -846,8 +846,8 @@ localstatedir = /var
 mandir = ${datarootdir}/man
 mibdir = ${pkgdatadir}/snmp/mibs
 mkdir_p = $(MKDIR_P)
-modulefsdir = /lib/modules/4.18.0scaladfs-rcu-anal/extra/kernel/fs/lustre
-modulenetdir = /lib/modules/4.18.0scaladfs-rcu-anal/extra/kernel/net/lustre
+modulefsdir = /lib/modules/4.18.0scaladfs-crashfix-v1/extra/kernel/fs/lustre
+modulenetdir = /lib/modules/4.18.0scaladfs-crashfix-v1/extra/kernel/net/lustre
 oldincludedir = /usr/include
 patch_avail = 
 pdfdir = ${docdir}
