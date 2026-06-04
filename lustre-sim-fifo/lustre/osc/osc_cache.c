@@ -1854,7 +1854,8 @@ static int osc_enter_cache(const struct lu_env *env, struct client_obd *cli,
 	// return -EDQUOT;
 
 	OSC_DUMP_GRANT(D_CACHE, cli, "need:%d\n", bytes);
-	set = application_prep_set();
+	//set = application_prep_set();
+	set = ptlrpc_prep_set();
 
 	spin_lock(&cli->cl_loi_list_lock);
 
