@@ -1936,6 +1936,10 @@ static int osc_enter_cache(const struct lu_env *env, struct client_obd *cli,
 	EXIT;
 out:
 	spin_unlock(&cli->cl_loi_list_lock);
+	/* ych add	*/
+	if  (set != NULL)
+		ptlrpc_set_destroy(set);
+	/* ych add	*/
 	RETURN(rc);
 }
 

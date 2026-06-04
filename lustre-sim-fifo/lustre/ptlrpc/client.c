@@ -1292,6 +1292,7 @@ EXPORT_SYMBOL(ptlrpc_prep_set);
 struct ptlrpc_request_set *application_prep_set(void)
 {
 	struct ptlrpc_request_set *set;
+	//printk("[%s] sizeof(struct ptlrpc_request_set)=%zu\n", __func__, sizeof(struct ptlrpc_request_set)); // 128 bytes
 
 	ENTRY;
 	set = kmalloc(sizeof(*set), GFP_NOFS);

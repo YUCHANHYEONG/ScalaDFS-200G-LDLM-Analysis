@@ -69,6 +69,7 @@ static int InsertNodeRW(struct LNode** listrl, struct LNode* lock, bool try)
 {
 	 struct LNode** prev;
 	 struct LNode* cur;
+	 //printk("[%s] sizeof(struct LNode)=%zu\n", __func__, sizeof(struct LNode)); // 32 bytes
 
 restart:
 	rcu_read_lock();
