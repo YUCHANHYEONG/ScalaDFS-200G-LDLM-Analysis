@@ -4,7 +4,7 @@
 #include <linux/ktime.h>
 #include <linux/percpu.h>
 
-
+// GOTO lustre/include/calclock.h
 //#define CONFIG_CALCLOCK
 
 struct calclock {

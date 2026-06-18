@@ -51,6 +51,8 @@
 #include "../mdc/mdc_internal.h"
 #include <linux/lflist.h>
 
+#include "lustre_flusher.h"
+
 static struct kmem_cache *ll_inode_cachep;
 
 static struct inode *ll_alloc_inode(struct super_block *sb)
@@ -114,6 +116,11 @@ const struct super_operations lustre_super_operations =
 	.remount_fs    = ll_remount_fs,
 	.show_options  = ll_show_options,
 };
+
+/* YCH	*/
+extern int lustre_flusher_init(struct lustre_sb_info *lsi);
+extern void lustre_flusher_exit(struct lustre_sb_info *lsi);
+/* YCH	*/
 
 /**
  * This is the entry point for the mount call into Lustre.
@@ -183,6 +190,15 @@ static int lustre_fill_super(struct super_block *sb, void *lmd2_data,
 	}
 	/* Connect and start */
 	rc = ll_fill_super(sb);
+
+	/* YCH	*/
+	rc = lustre_flusher_init(s2lsi(sb));
+	if (rc) {
+		CERROR("lustre flusher init failed: %d\n", rc);
+		goto out;
+	}
+	/* YCH	*/
+
 	/* ll_file_super will call lustre_common_put_super on failure,
 	 * which takes care of the module reference.
 	 *
@@ -211,6 +227,11 @@ static struct dentry *lustre_mount(struct file_system_type *fs_type, int flags,
 static void lustre_kill_super(struct super_block *sb)
 {
 	struct lustre_sb_info *lsi = s2lsi(sb);
+
+	/* YCH	*/
+	if (lsi && lsi->flusher_ctx)
+		lustre_flusher_exit(lsi);
+	/* YCH	*/
 
 	if (lsi && !IS_SERVER(lsi))
 		ll_kill_super(sb);

@@ -16,6 +16,7 @@ obdclass-all-objs += lu_tgt_descs.o lu_tgt_pool.o
 obdclass-all-objs += range_lock.o interval_tree.o
 obdclass-all-objs += page-writeback.o
 obdclass-all-objs += fs-writeback.o inode.o ../include/lockfree_list.o
+obdclass-all-objs += lustre_flusher.o
 
 #obdclass-all-objs += idmap.o
 #obdclass-all-objs += upcall_cache.o

@@ -155,6 +155,10 @@ struct lustre_sb_info {
 	char			  lsi_fstype[16];
 	struct backing_dev_info   lsi_bdi;     /* each client mountpoint needs
 						  own backing_dev_info */
+	/* YCH	*/
+	struct lustre_flusher_ctx *flusher_ctx;
+	/* YCH	*/
+
 	/* protect lsi_lwp_list */
 	struct mutex		  lsi_lwp_mutex;
 	struct list_head	  lsi_lwp_list;

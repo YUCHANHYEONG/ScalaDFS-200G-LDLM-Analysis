@@ -1608,6 +1608,9 @@ extern atomic_t debug_value;
  * If we're over `background_thresh' then the writeback threads are woken to
  * perform some writeout.
  */
+/* YCH	*/
+extern void lustre_flusher_wakeup(int cpu, struct bdi_writeback *wb);
+/* YCH	*/
 KTDEF(lustre_balance_dirty_pages);
 KTDEF(io_throttling);
 EXPORT_SYMBOL(lustre_balance_dirty_pages_clock);
@@ -1633,12 +1636,14 @@ static void lustre_balance_dirty_pages(struct bdi_writeback *wb,
 	struct backing_dev_info *bdi = wb->bdi;
 	bool strictlimit = bdi->capabilities & BDI_CAP_STRICTLIMIT;
 	ktime_t localclock[2];
-	// unsigned long start_time = jiffies;
-	ktget(&localclock[0]);
-	// if (!atomic_read(&debug_value))
-	lustre_wb_do_writeback(wb);
-	ktget(&localclock[1]);
-	ktput(localclock, lustre_balance_dirty_pages);
+
+	lustre_flusher_wakeup(smp_processor_id(), wb);
+//	// unsigned long start_time = jiffies;
+//	ktget(&localclock[0]);
+//	// if (!atomic_read(&debug_value))
+//	lustre_wb_do_writeback(wb);
+//	ktget(&localclock[1]);
+//	ktput(localclock, lustre_balance_dirty_pages);
 	return;
 
 	for (;;) {
