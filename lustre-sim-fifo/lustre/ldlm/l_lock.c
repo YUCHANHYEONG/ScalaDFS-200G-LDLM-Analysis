@@ -35,6 +35,8 @@
 #include <lustre_dlm.h>
 #include <lustre_lib.h>
 
+#include <../include/calclock.h>
+
 /**
  * Lock a lock and its resource.
  *
@@ -60,6 +62,37 @@ struct ldlm_resource *lock_res_and_lock(struct ldlm_lock *lock)
 	}
 }
 EXPORT_SYMBOL(lock_res_and_lock);
+
+KTDEF(rcu_read_lock);
+EXPORT_SYMBOL(rcu_read_lock_clock);
+
+KTDEF(ych_lock_res);
+EXPORT_SYMBOL(ych_lock_res_clock);
+struct ldlm_resource *prof_lock_res_and_lock(struct ldlm_lock *lock)
+{
+	struct ldlm_resource *res;
+	ktime_t localclock[2];
+
+	ktget(&localclock[0]);
+	rcu_read_lock();
+	ktget(&localclock[1]);
+	ktput(localclock, rcu_read_lock);
+	while (1) {
+		res = rcu_dereference(lock->l_resource);
+		ktget(&localclock[0]);
+		lock_res(res);
+		ktget(&localclock[1]);
+		ktput(localclock, ych_lock_res);
+		if (res == lock->l_resource) {
+			ldlm_set_res_locked(lock);
+			rcu_read_unlock();
+			return res;
+		}
+		unlock_res(res);
+	}
+}
+EXPORT_SYMBOL(prof_lock_res_and_lock);
+
 
 /**
  * Unlock a lock and its resource previously locked with lock_res_and_lock

@@ -1467,6 +1467,92 @@ out:
 	return rc;
 }
 
+KTDEF(cl_object_attr_lock);
+EXPORT_SYMBOL(cl_object_attr_lock_clock);
+
+static int lustre_ll_merge_attr_nolock(const struct lu_env *env, struct inode *inode)
+{
+	struct ll_inode_info *lli = ll_i2info(inode);
+	struct cl_object *obj = lli->lli_clob;
+	struct cl_attr *attr = vvp_env_thread_attr(env);
+	s64 atime;
+	s64 mtime;
+	s64 ctime;
+	int rc = 0;
+	ktime_t localclock[2];
+
+	ENTRY;
+
+	/* Merge timestamps the most recently obtained from MDS with
+	 * timestamps obtained from OSTs.
+	 *
+	 * Do not overwrite atime of inode because it may be refreshed
+	 * by file_accessed() function. If the read was served by cache
+	 * data, there is no RPC to be sent so that atime may not be
+	 * transferred to OSTs at all. MDT only updates atime at close time
+	 * if it's at least 'mdd.*.atime_diff' older.
+	 * All in all, the atime in Lustre does not strictly comply with
+	 * POSIX. Solving this problem needs to send an RPC to MDT for each
+	 * read, this will hurt performance.
+	 */
+	if (test_and_clear_bit(LLIF_UPDATE_ATIME, &lli->lli_flags) ||
+	    inode->i_atime.tv_sec < lli->lli_atime)
+		inode->i_atime.tv_sec = lli->lli_atime;
+
+	inode->i_mtime.tv_sec = lli->lli_mtime;
+	inode->i_ctime.tv_sec = lli->lli_ctime;
+
+	mtime = inode->i_mtime.tv_sec;
+	atime = inode->i_atime.tv_sec;
+	ctime = inode->i_ctime.tv_sec;
+
+	ktget(&localclock[0]);
+	cl_object_attr_lock(obj);
+	ktget(&localclock[1]);
+	ktput(localclock, cl_object_attr_lock);
+	if (CFS_FAIL_CHECK(OBD_FAIL_MDC_MERGE))
+		rc = -EINVAL;
+	else
+		rc = cl_object_attr_get(env, obj, attr);
+	cl_object_attr_unlock(obj);
+
+	if (rc != 0)
+		GOTO(out, rc = (rc == -ENODATA ? 0 : rc));
+
+	if (atime < attr->cat_atime)
+		atime = attr->cat_atime;
+
+	if (ctime < attr->cat_ctime)
+		ctime = attr->cat_ctime;
+
+	if (mtime < attr->cat_mtime)
+		mtime = attr->cat_mtime;
+
+	CDEBUG(D_VFSTRACE, DFID" updating i_size %llu i_blocks %llu\n",
+	       PFID(&lli->lli_fid), attr->cat_size, attr->cat_blocks);
+
+	if (llcrypt_require_key(inode) == -ENOKEY) {
+		/* Without the key, round up encrypted file size to next
+		 * LUSTRE_ENCRYPTION_UNIT_SIZE. Clear text size is put in
+		 * lli_lazysize for proper file size setting at close time.
+		 */
+		lli->lli_attr_valid |= OBD_MD_FLLAZYSIZE;
+		lli->lli_lazysize = attr->cat_size;
+		attr->cat_size = round_up(attr->cat_size,
+					  LUSTRE_ENCRYPTION_UNIT_SIZE);
+	}
+	i_size_write(inode, attr->cat_size);
+	inode->i_blocks = attr->cat_blocks;
+
+	inode->i_mtime.tv_sec = mtime;
+	inode->i_atime.tv_sec = atime;
+	inode->i_ctime.tv_sec = ctime;
+
+	EXIT;
+out:
+	return rc;
+}
+
 static int ll_merge_attr_nolock(const struct lu_env *env, struct inode *inode)
 {
 	struct ll_inode_info *lli = ll_i2info(inode);
@@ -1548,15 +1634,37 @@ out:
 
 KTDEF(ll_inode_size_lock);
 EXPORT_SYMBOL(ll_inode_size_lock_clock);
+void lustre_ll_inode_size_lock(struct inode *inode);
+static int lustre_ll_merge_attr_nolock(const struct lu_env *env, struct inode *inode);
+
+int lustre_ll_merge_attr(const struct lu_env *env, struct inode *inode)
+{
+	int rc;
+	ktime_t localclock[2];
+
+	ktget(&localclock[0]);
+	lustre_ll_inode_size_lock(inode);
+	//ll_inode_size_lock(inode);
+	ktget(&localclock[1]);
+	ktput(localclock, ll_inode_size_lock);
+
+	rc = lustre_ll_merge_attr_nolock(env, inode);
+	//rc = ll_merge_attr_nolock(env, inode);
+	ll_inode_size_unlock(inode);
+
+	return rc;
+}
 
 int ll_merge_attr(const struct lu_env *env, struct inode *inode)
 {
 	int rc;
-	ktime_t localclock[2];
-	ktget(&localclock[0]);
+	//ktime_t localclock[2];
+
+	//ktget(&localclock[0]);
 	ll_inode_size_lock(inode);
-	ktget(&localclock[1]);
-	ktput(localclock, ll_inode_size_lock);
+	//ktget(&localclock[1]);
+	//ktput(localclock, ll_inode_size_lock);
+
 	rc = ll_merge_attr_nolock(env, inode);
 	ll_inode_size_unlock(inode);
 
@@ -2404,6 +2512,8 @@ KTDEF(ll_file_write_iter);
 static ssize_t ll_file_write_iter(struct kiocb *iocb, struct iov_iter *from){
 	ssize_t ret;
 	ktime_t localclock[2];
+	
+	//printk("[%s] start!!!\n", __func__);
 	ktget(&localclock[0]);
 	ret = ll_file_write_iter_internal(iocb, from);
 	ktget(&localclock[1]);

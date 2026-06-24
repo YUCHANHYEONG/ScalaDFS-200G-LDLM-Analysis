@@ -559,6 +559,7 @@ static int vvp_io_rw_lock(const struct lu_env *env, struct cl_io *io,
 	struct vvp_io *vio = vvp_env_io(env);
 	int result;
 	int ast_flags = 0;
+	//printk("[%s] start!\n", __func__);
 
 	LASSERT(io->ci_type == CIT_READ || io->ci_type == CIT_WRITE);
 	ENTRY;
@@ -628,6 +629,7 @@ static int vvp_io_write_lock_internal(const struct lu_env *env,
 	struct cl_io *io = ios->cis_io;
 	loff_t start;
 	loff_t end;
+	//printk("[%s] start!\n", __func__);
 
 	if (io->u.ci_wr.wr_append) {
 		start = 0;
@@ -1240,6 +1242,8 @@ EXPORT_SYMBOL(cl_io_commit_async_clock);
 KTDEF(vvp_io_commit_sync);
 EXPORT_SYMBOL(vvp_io_commit_sync_clock);
 
+int lustre_ll_merge_attr(const struct lu_env *env, struct inode *inode);
+
 /* Return how many bytes have queued or written */
 int vvp_io_write_commit(const struct lu_env *env, struct cl_io *io)
 {
@@ -1316,7 +1320,8 @@ int vvp_io_write_commit(const struct lu_env *env, struct cl_io *io)
 
 	/* update inode size */
 	ktget(&localclock[0]);
-	ll_merge_attr(env, inode);
+	lustre_ll_merge_attr(env, inode);
+	//ll_merge_attr(env, inode);
 	ktget(&localclock[1]);
 	ktput(localclock, ll_merge_attr);
 

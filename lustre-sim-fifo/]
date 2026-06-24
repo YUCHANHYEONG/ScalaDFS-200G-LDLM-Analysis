@@ -639,10 +639,6 @@ void osc_extent_release(const struct lu_env *env, struct osc_extent *ext)
 	RETURN_EXIT;
 }
 
-KTDEF(osc_extent_alloc);
-EXPORT_SYMBOL(osc_extent_alloc_clock);
-KTDEF(ldlm_lock_get);
-EXPORT_SYMBOL(ldlm_lock_get_clock);
 KTDEF(osc_extent_search);
 EXPORT_SYMBOL(osc_extent_search_clock);
 
@@ -671,10 +667,7 @@ static struct osc_extent *osc_extent_find(const struct lu_env *env,
 	ktime_t localclock[2];
 	ENTRY;
 
-	ktget(&localclock[0]);
 	cur = osc_extent_alloc(obj);
-	ktget(&localclock[1]);
-	ktput(localclock, osc_extent_alloc);
 	if (cur == NULL)
 		RETURN(ERR_PTR(-ENOMEM));
 
@@ -714,10 +707,7 @@ static struct osc_extent *osc_extent_find(const struct lu_env *env,
 	cur->oe_mppr    = max_pages;
 	if (olck->ols_dlmlock != NULL) {
 		LASSERT(olck->ols_hold);
-		ktget(&localclock[0]);
 		cur->oe_dlmlock = LDLM_LOCK_GET(olck->ols_dlmlock);
-		ktget(&localclock[1]);
-		ktput(localclock, ldlm_lock_get);
 		lu_ref_add(&olck->ols_dlmlock->l_reference, "osc_extent", cur);
 	}
 
@@ -1645,26 +1635,15 @@ static void osc_unreserve_grant_nolock(struct client_obd *cli,
 		osc_wake_cache_waiters(cli);
 }
 
-KTDEF(cl_loi_list_lock_osc_unreserve_grant);
-EXPORT_SYMBOL(cl_loi_list_lock_osc_unreserve_grant_clock);
-
 static void osc_unreserve_grant(struct client_obd *cli,
 				unsigned int reserved, unsigned int unused)
 {
-	ktime_t localclock[2];
-
-	ktget(&localclock[0]);
 	spin_lock(&cli->cl_loi_list_lock);
-	ktget(&localclock[1]);
-	ktput(localclock, cl_loi_list_lock_osc_unreserve_grant);
 //        printk("[%s] cli->cl_avail_grant=%lu(KB)\n", __func__,
 //			                        cli->cl_avail_grant/1024);
 	osc_unreserve_grant_nolock(cli, reserved, unused);
 	spin_unlock(&cli->cl_loi_list_lock);
 }
-
-KTDEF(cl_loi_list_lock_osc_free_grant);
-EXPORT_SYMBOL(cl_loi_list_lock_osc_free_grant_clock);
 
 /**
  * Free grant after IO is finished or canceled.
@@ -1683,14 +1662,10 @@ static void osc_free_grant(struct client_obd *cli, unsigned int nr_pages,
 			   unsigned int lost_grant, unsigned int dirty_grant)
 {
 	unsigned long grant;
-	ktime_t localclock[2];
 
 	grant = (1 << cli->cl_chunkbits) + cli->cl_grant_extent_tax;
 
-	ktget(&localclock[0]);
 	spin_lock(&cli->cl_loi_list_lock);
-	ktget(&localclock[1]);
-	ktput(localclock, cl_loi_list_lock_osc_free_grant);
 	// atomic_long_sub(nr_pages, &obd_dirty_pages);
 	__this_cpu_sub(obd_dirty_pages_cpu, nr_pages);
 	cli->cl_dirty_pages -= nr_pages;
@@ -1710,21 +1685,13 @@ static void osc_free_grant(struct client_obd *cli, unsigned int nr_pages,
 	       cli->cl_dirty_grant);
 }
 
-KTDEF(cl_loi_list_lock_osc_exit_cache);
-EXPORT_SYMBOL(cl_loi_list_lock_osc_exit_cache_clock);
-
 /**
  * The companion to osc_enter_cache(), called when @oap is no longer part of
  * the dirty accounting due to error.
  */
 static void osc_exit_cache(struct client_obd *cli, struct osc_async_page *oap)
 {
-	ktime_t localclock[2];
-
-	ktget(&localclock[0]);
 	spin_lock(&cli->cl_loi_list_lock);
-	ktget(&localclock[1]);
-	ktput(localclock, cl_loi_list_lock_osc_exit_cache);
 	osc_release_write_grant(cli, &oap->oap_brw_page);
 	spin_unlock(&cli->cl_loi_list_lock);
 }
@@ -1844,17 +1811,9 @@ static inline void application_unlock_and_unplug(const struct lu_env *env,
 	       cli_name(cli), oap);
 }
 
-KTDEF(cl_loi_list_lock_cli_lock_after_unplug);
-EXPORT_SYMBOL(cl_loi_list_lock_cli_lock_after_unplug_clock);
-
 static inline void cli_lock_after_unplug(struct client_obd *cli)
 {
-	ktime_t localclock[2];
-
-	ktget(&localclock[0]);
 	spin_lock(&cli->cl_loi_list_lock);
-	ktget(&localclock[1]);
-	ktput(localclock, cl_loi_list_lock_cli_lock_after_unplug);
 }
 
 KTDEF(osc_enter_cache_wait);
@@ -1867,8 +1826,6 @@ EXPORT_SYMBOL(osc_enter_cache_wait_clock);
  *
  * The process will be put into sleep if it's already run out of grant.
  */
-KTDEF(ptlrpc_prep_set);
-EXPORT_SYMBOL(ptlrpc_prep_set_clock);
 
 KTDEF(ych_cl_loi_list_lock);
 EXPORT_SYMBOL(ych_cl_loi_list_lock_clock);
@@ -1915,10 +1872,7 @@ static int osc_enter_cache(const struct lu_env *env, struct client_obd *cli,
 
 	OSC_DUMP_GRANT(D_CACHE, cli, "need:%d\n", bytes);
 	//set = application_prep_set();
-	ktget(&localclock[0]);
 	set = ptlrpc_prep_set();
-	ktget(&localclock[1]);
-	ktput(localclock, ptlrpc_prep_set);
 
 	ktget(&localclock[0]);
 	spin_lock(&cli->cl_loi_list_lock);
@@ -1974,7 +1928,7 @@ static int osc_enter_cache(const struct lu_env *env, struct client_obd *cli,
 		ktget(&localclock[0]);
 		application_unlock_and_unplug(env, cli, oap, set);
 		ktget(&localclock[1]);
-		ktput(localclock, application_unlock_and_unplug);
+		ktput(application_unlock_and_unplug);
 		
 		ktget(&localclock[0]);
 		cli_lock_after_unplug(cli);
@@ -2284,18 +2238,11 @@ static int __osc_list_maint(struct client_obd *cli, struct osc_object *osc)
 	return osc_is_ready(osc);
 }
 
-KTDEF(cl_loi_list_lock_osc_list_maint);
-EXPORT_SYMBOL(cl_loi_list_lock_osc_list_maint_clock);
-
 static int osc_list_maint(struct client_obd *cli, struct osc_object *osc)
 {
 	int is_ready;
-	ktime_t localclock[2];
 
-	ktget(&localclock[0]);
 	spin_lock(&cli->cl_loi_list_lock);
-	ktget(&localclock[1]);
-	ktput(localclock, cl_loi_list_lock_osc_list_maint);
 	is_ready = __osc_list_maint(cli, osc);
 	spin_unlock(&cli->cl_loi_list_lock);
 
@@ -2324,9 +2271,6 @@ static void osc_process_ar(struct osc_async_rc *ar, __u64 xid,
 		ar->ar_force_sync = 0;
 }
 
-KTDEF(cl_loi_list_lock_osc_ap_completion);
-EXPORT_SYMBOL(cl_loi_list_lock_osc_ap_completion_clock);
-
 /* this must be called holding the loi list lock to give coverage to exit_cache,
  * async_flag maintenance, and oap_request */
 static void osc_ap_completion(const struct lu_env *env, struct client_obd *cli,
@@ -2335,7 +2279,6 @@ static void osc_ap_completion(const struct lu_env *env, struct client_obd *cli,
 	struct osc_object *osc = oap->oap_obj;
 	struct lov_oinfo  *loi = osc->oo_oinfo;
 	__u64 xid = 0;
-	ktime_t localclock[2];
 
 	ENTRY;
 	if (oap->oap_request != NULL) {
@@ -2348,10 +2291,7 @@ static void osc_ap_completion(const struct lu_env *env, struct client_obd *cli,
 	oap->oap_async_flags = 0;
 
 	if (oap->oap_cmd & OBD_BRW_WRITE && xid > 0) {
-		ktget(&localclock[0]);
 		spin_lock(&cli->cl_loi_list_lock);
-		ktget(&localclock[1]);
-		ktput(localclock, cl_loi_list_lock_osc_ap_completion);
 		osc_process_ar(&cli->cl_ar, xid, rc);
 		osc_process_ar(&loi->loi_ar, xid, rc);
 		spin_unlock(&cli->cl_loi_list_lock);
@@ -2795,16 +2735,12 @@ static struct osc_object *application_osc_next_obj(struct client_obd *cli)
 	RETURN(NULL);
 }
 
-KTDEF(cl_loi_list_lock_osc_check_rpcs);
-EXPORT_SYMBOL(cl_loi_list_lock_osc_check_rpcs_clock);
-
 /* called with the loi list lock held */
 static void osc_check_rpcs(const struct lu_env *env, struct client_obd *cli)
 __must_hold(&cli->cl_loi_list_lock)
 {
 	struct osc_object *osc;
 	int rc = 0;
-	ktime_t localclock[2];
 	ENTRY;
 
 	while ((osc = osc_next_obj(cli)) != NULL) {
@@ -2869,23 +2805,16 @@ __must_hold(&cli->cl_loi_list_lock)
 		lu_object_ref_del_at(&obj->co_lu, &link, "check", current);
 		cl_object_put(env, obj);
 
-		ktget(&localclock[0]);
 		spin_lock(&cli->cl_loi_list_lock);
-		ktget(&localclock[1]);
-		ktput(localclock, cl_loi_list_lock_osc_check_rpcs);
 	}
 	EXIT;
 }
-
-KTDEF(cl_loi_list_lock_application_check_rpcs);
-EXPORT_SYMBOL(cl_loi_list_lock_application_check_rpcs_clock);
 
 static void application_check_rpcs(const struct lu_env *env, struct client_obd *cli, struct ptlrpc_request_set *set)
 __must_hold(&cli->cl_loi_list_lock)
 {
 	struct osc_object *osc;
 	int rc = 0;
-	ktime_t localclock[2];
 	ENTRY;
 
 	while ((osc = application_osc_next_obj(cli)) != NULL) {
@@ -2952,10 +2881,7 @@ __must_hold(&cli->cl_loi_list_lock)
 		lu_object_ref_del_at(&obj->co_lu, &link, "check", current);
 		cl_object_put(env, obj);
 
-		ktget(&localclock[0]);
 		spin_lock(&cli->cl_loi_list_lock);
-		ktget(&localclock[1]);
-		ktput(localclock, cl_loi_list_lock_application_check_rpcs);
 	}
 	EXIT;
 }
@@ -2975,10 +2901,10 @@ int osc_io_unplug0(const struct lu_env *env, struct client_obd *cli,
 	if (!async) {
 		ktget(&localclock[0]);
 		spin_lock(&cli->cl_loi_list_lock);
-		ktget(&localclock[1]);
-		ktput(localclock, osc_io_unplug0_sync);
 		osc_check_rpcs(env, cli);
 		spin_unlock(&cli->cl_loi_list_lock);
+		ktget(&localclock[1]);
+		ktput(localclock, osc_io_unplug0_sync);
 	} else {
 		CDEBUG(D_CACHE, "Queue writeback work for client %p.\n", cli);
 		// pr_info("Queue writeback work for client %p.\n", cli);
@@ -2989,21 +2915,14 @@ int osc_io_unplug0(const struct lu_env *env, struct client_obd *cli,
 }
 EXPORT_SYMBOL(osc_io_unplug0);
 
-KTDEF(cl_loi_list_lock_application_io_unplug);
-EXPORT_SYMBOL(cl_loi_list_lock_application_io_unplug_clock);
-
 int application_io_unplug(const struct lu_env *env, struct client_obd *cli,
 		   struct osc_object *osc, struct ptlrpc_request_set *set)
 {
 	int rc = 0;
-	ktime_t localclock[2];
 
 	if (osc != NULL && osc_list_maint(cli, osc) == 0)
 		return 0;
-	ktget(&localclock[0]);
 	spin_lock(&cli->cl_loi_list_lock);
-	ktget(&localclock[1]);
-	ktput(localclock, cl_loi_list_lock_application_io_unplug);
 	application_check_rpcs(env, cli, set);
 	spin_unlock(&cli->cl_loi_list_lock);
 	return rc;
@@ -3040,9 +2959,6 @@ int osc_prep_async_page(struct osc_object *osc, struct osc_page *ops,
 	RETURN(0);
 }
 EXPORT_SYMBOL(osc_prep_async_page);
-
-KTDEF(cl_loi_list_lock_osc_queue_async_io_1);
-EXPORT_SYMBOL(cl_loi_list_lock_osc_queue_async_io_1_clock);
 
 KTDEF(cl_loi_list_lock);
 EXPORT_SYMBOL(cl_loi_list_lock_clock);
@@ -3121,10 +3037,7 @@ int osc_queue_async_io(const struct lu_env *env, struct cl_io *io,
 				max_value = tmp_value;
 			}
 		}
-		ktget(&localclock[0]);
 		spin_lock(&cli->cl_loi_list_lock);
-		ktget(&localclock[1]);
-		ktput(localclock, cl_loi_list_lock_osc_queue_async_io_1);
 		if (max_idx == 0) {
 			cli->cl_avail_grant = (unsigned long)256 * 1024 * 1024 * 1024;
 		} else if (max_idx == 1) {
@@ -3456,9 +3369,6 @@ out:
 
 int application_check_req(struct lu_env *env, struct ptlrpc_request_set *set);
 
-KTDEF(cl_loi_list_lock_osc_queue_sync_pages);
-EXPORT_SYMBOL(cl_loi_list_lock_osc_queue_sync_pages_clock);
-
 int osc_queue_sync_pages(const struct lu_env *env, struct cl_io *io,
 			 struct osc_object *obj, struct list_head *list,
 			 int brw_flags)
@@ -3477,7 +3387,6 @@ int osc_queue_sync_pages(const struct lu_env *env, struct cl_io *io,
 	// struct lu_context		ses = { 0 };
 	// struct lu_env			temp_env = { .le_ses = &ses };
 	// int ret;
-	ktime_t localclock[2];
 	ENTRY;
 
 	list_for_each_entry(oap, list, oap_pending_item) {
@@ -3532,10 +3441,7 @@ int osc_queue_sync_pages(const struct lu_env *env, struct cl_io *io,
 			((page_count + ppc - 1) / ppc);
 
 		CDEBUG(D_CACHE, "requesting %d bytes grant\n", grants);
-		ktget(&localclock[0]);
 		spin_lock(&cli->cl_loi_list_lock);
-		ktget(&localclock[1]);
-		ktput(localclock, cl_loi_list_lock_osc_queue_sync_pages);
 		if (osc_reserve_grant(cli, grants) == 0) {
 			list_for_each_entry(oap, list, oap_pending_item) {
 				osc_consume_write_grant(cli,

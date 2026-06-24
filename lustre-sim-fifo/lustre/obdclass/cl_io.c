@@ -293,6 +293,7 @@ int cl_io_lock(const struct lu_env *env, struct cl_io *io)
 	const struct cl_io_slice *scan;
 	int result = 0;
 	ktime_t localclock[2];
+	//printk("[%s] start!!!\n", __func__);
 
 	LINVRNT(cl_io_is_loopable(io));
 	LINVRNT(io->ci_state == CIS_IT_STARTED);
@@ -303,7 +304,11 @@ int cl_io_lock(const struct lu_env *env, struct cl_io *io)
 	list_for_each_entry(scan, &io->ci_layers, cis_linkage) {
 		if (scan->cis_iop->op[io->ci_type].cio_lock == NULL)
 			continue;
+		//printk("[%s] scan->cis_iop->op[io->ci_type].cio_lock = %ps\n", __func__,
+		//		scan->cis_iop->op[io->ci_type].cio_lock);
 		result = scan->cis_iop->op[io->ci_type].cio_lock(env, scan);
+		// vvp_io_write_lock()
+		// lov_io_lock()
 		if (result != 0)
 			break;
 	}
@@ -551,6 +556,7 @@ int cl_io_start(const struct lu_env *env, struct cl_io *io)
 		if (scan->cis_iop->op[io->ci_type].cio_start == NULL)
 			continue;
 		//printk("%pS\n", scan->cis_iop->op[io->ci_type].cio_start);//vvp_io_write_start
+		//vvp_io_write_start()
 		ktget(&localclock[0]);
 		result = scan->cis_iop->op[io->ci_type].cio_start(env, scan);
 		ktget(&localclock[1]);

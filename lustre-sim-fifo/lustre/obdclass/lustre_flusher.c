@@ -7,6 +7,7 @@
 
 #include "lustre_flusher.h"
 #include "lustre_disk.h"
+#include <calclock.h>
 
 struct lustre_sb_info;
 
@@ -14,9 +15,13 @@ struct lustre_flusher_ctx *ctx;
 
 extern long lustre_wb_do_writeback(struct bdi_writeback *wb);
 
+KTDEF(lustre_wb_do_writeback);
+EXPORT_SYMBOL(lustre_wb_do_writeback_clock);
+
 static int lustre_flusher_thread(void *data)
 {
 	struct lustre_flusher *f = data;
+	ktime_t localclock[2];
 
 	//printk("lustre_flusher: cpu %d started\n", f->cpu);
 
@@ -35,7 +40,10 @@ static int lustre_flusher_thread(void *data)
 			//printk("[%s] ych_2\n", __func__);
 			f->wb = NULL;
 
+			ktget(&localclock[0]);
 			lustre_wb_do_writeback(wb);
+			ktget(&localclock[1]);
+			ktput(localclock, lustre_wb_do_writeback);
 			//printk("[%s] ych_3\n", __func__);
 		}
 

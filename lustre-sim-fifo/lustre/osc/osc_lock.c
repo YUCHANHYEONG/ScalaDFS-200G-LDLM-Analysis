@@ -201,19 +201,43 @@ void osc_lock_lvb_update(const struct lu_env *env,
 	EXIT;
 }
 
+KTDEF(ldlm_handle2lock_long);
+EXPORT_SYMBOL(ldlm_handle2lock_long_clock);
+
+KTDEF(lu_ref_add_atomic);
+EXPORT_SYMBOL(lu_ref_add_atomic_clock);
+
+KTDEF(ych_lock_res_and_lock);
+EXPORT_SYMBOL(ych_lock_res_and_lock_clock);
+
+KTDEF(osc_lock_lvb_update);
+EXPORT_SYMBOL(osc_lock_lvb_update_clock);
+
+KTDEF(ych_unlock_res_and_lock);
+EXPORT_SYMBOL(ych_unlock_res_and_lock_clock);
+
+struct ldlm_resource *prof_lock_res_and_lock(struct ldlm_lock *lock);
+
 static void osc_lock_granted(const struct lu_env *env, struct osc_lock *oscl,
 			     struct lustre_handle *lockh)
 {
 	struct osc_object *osc = cl2osc(oscl->ols_cl.cls_obj);
 	struct ldlm_lock *dlmlock;
+	ktime_t localclock[2];
 
+	ktget(&localclock[0]);
 	dlmlock = ldlm_handle2lock_long(lockh, 0);
+	ktget(&localclock[1]);
+	ktput(localclock, ldlm_handle2lock_long);
 	LASSERT(dlmlock != NULL);
 
 	/* lock reference taken by ldlm_handle2lock_long() is
 	 * owned by osc_lock and released in osc_lock_detach()
 	 */
+	ktget(&localclock[0]);
 	lu_ref_add_atomic(&dlmlock->l_reference, "osc_lock", oscl);
+	ktget(&localclock[1]);
+	ktput(localclock, lu_ref_add_atomic);
 	oscl->ols_has_ref = 1;
 
 	LASSERT(oscl->ols_dlmlock == NULL);
@@ -230,7 +254,11 @@ static void osc_lock_granted(const struct lu_env *env, struct osc_lock *oscl,
 	}
 
 	/* Lock must have been granted. */
-	lock_res_and_lock(dlmlock);
+	ktget(&localclock[0]);
+	prof_lock_res_and_lock(dlmlock);
+	//lock_res_and_lock(dlmlock);
+	ktget(&localclock[1]);
+	ktput(localclock, ych_lock_res_and_lock);
 	if (ldlm_is_granted(dlmlock)) {
 		struct ldlm_extent *ext = &dlmlock->l_policy_data.l_extent;
 		struct cl_lock_descr *descr = &oscl->ols_cl.cls_lock->cll_descr;
@@ -246,17 +274,25 @@ static void osc_lock_granted(const struct lu_env *env, struct osc_lock *oscl,
 		if (!ldlm_is_lvb_cached(dlmlock)) {
 			LASSERT(oscl->ols_flags & LDLM_FL_LVB_READY);
 			LASSERT(osc == dlmlock->l_ast_data);
+			ktget(&localclock[0]);
 			osc_lock_lvb_update(env, osc, dlmlock, NULL);
+			ktget(&localclock[1]);
+			ktput(localclock, osc_lock_lvb_update);
 			ldlm_set_lvb_cached(dlmlock);
 		}
 		LINVRNT(osc_lock_invariant(oscl));
 	}
+	ktget(&localclock[0]);
 	unlock_res_and_lock(dlmlock);
+	ktget(&localclock[1]);
+	ktput(localclock, ych_unlock_res_and_lock);
 
 	LASSERT(oscl->ols_state != OLS_GRANTED);
 	oscl->ols_state = OLS_GRANTED;
 }
 
+KTDEF(osc_lock_granted);
+EXPORT_SYMBOL(osc_lock_granted_clock);
 /**
  * Lock upcall function that is executed either when a reply to ENQUEUE rpc is
  * received from a server, or after osc_enqueue_base() matched a local DLM
@@ -269,6 +305,7 @@ static int osc_lock_upcall(void *cookie, struct lustre_handle *lockh,
 	struct cl_lock_slice    *slice = &oscl->ols_cl;
 	struct lu_env           *env;
 	int			rc;
+	ktime_t localclock[2];
 
 	ENTRY;
 
@@ -286,8 +323,12 @@ static int osc_lock_upcall(void *cookie, struct lustre_handle *lockh,
 		LBUG();
 	}
 
-	if (rc == 0)
+	if (rc == 0){
+		ktget(&localclock[0]);
 		osc_lock_granted(env, oscl, lockh);
+		ktget(&localclock[1]);
+		ktput(localclock, osc_lock_granted);
+	}
 
 	/* Error handling, some errors are tolerable. */
 	if (oscl->ols_glimpse && rc == -ENAVAIL) {

@@ -850,7 +850,7 @@ EXPORT_SYMBOL(ldlm_lock_add_to_lru_clock);
  * on the namespace.
  * For blocked LDLM locks if r/w count drops to zero, blocking_ast is called.
  */
-void ldlm_lock_decref_internal(struct ldlm_lock *lock, enum ldlm_mode mode)
+void lustre_ldlm_lock_decref_internal(struct ldlm_lock *lock, enum ldlm_mode mode)
 {
 	struct ldlm_namespace *ns;
 	ktime_t localclock[2];
@@ -929,9 +929,91 @@ void ldlm_lock_decref_internal(struct ldlm_lock *lock, enum ldlm_mode mode)
 	EXIT;
 }
 
+void ldlm_lock_decref_internal(struct ldlm_lock *lock, enum ldlm_mode mode)
+{
+	struct ldlm_namespace *ns;
+
+	ENTRY;
+
+	lock_res_and_lock(lock);
+
+	ns = ldlm_lock_to_ns(lock);
+
+	ldlm_lock_decref_internal_nolock(lock, mode);
+
+	if ((ldlm_is_local(lock) || lock->l_req_mode == LCK_GROUP) &&
+	    !lock->l_readers && !lock->l_writers) {
+		/* If this is a local lock on a server namespace and this was
+		 * the last reference, cancel the lock.
+		 *
+		 * Group locks are special:
+		 * They must not go in LRU, but they are not called back
+		 * like non-group locks, instead they are manually released.
+		 * They have an l_writers reference which they keep until
+		 * they are manually released, so we remove them when they have
+		 * no more reader or writer references. - LU-6368 */
+		ldlm_set_cbpending(lock);
+	}
+
+	if (!lock->l_readers && !lock->l_writers && ldlm_is_cbpending(lock)) {
+		unsigned int mask = D_DLMTRACE;
+
+		/* If we received a blocked AST and this was the last reference,
+		 * run the callback. */
+		if (ldlm_is_ns_srv(lock) && lock->l_export)
+			mask |= D_WARNING;
+		LDLM_DEBUG_LIMIT(mask, lock,
+				 "final decref done on %sCBPENDING lock",
+				 mask & D_WARNING ? "non-local " : "");
+
+		LDLM_LOCK_GET(lock); /* dropped by bl thread */
+		ldlm_lock_remove_from_lru(lock);
+		unlock_res_and_lock(lock);
+
+		if (ldlm_is_fail_loc(lock))
+			CFS_RACE(OBD_FAIL_LDLM_CP_BL_RACE);
+
+		if (ldlm_is_atomic_cb(lock) ||
+                    ldlm_bl_to_thread_lock(ns, NULL, lock) != 0)
+			ldlm_handle_bl_callback(ns, NULL, lock);
+        } else if (ns_is_client(ns) &&
+		   !lock->l_readers && !lock->l_writers &&
+		   !ldlm_is_no_lru(lock) &&
+		   !ldlm_is_bl_ast(lock) &&
+		   !ldlm_is_converting(lock)) {
+
+		/* If this is a client-side namespace and this was the last
+		 * reference, put it on the LRU.
+		 */
+		ldlm_lock_add_to_lru(lock);
+		unlock_res_and_lock(lock);
+		LDLM_DEBUG(lock, "add lock into lru list");
+
+		if (ldlm_is_fail_loc(lock))
+			CFS_RACE(OBD_FAIL_LDLM_CP_BL_RACE);
+
+		ldlm_pool_recalc(&ns->ns_pool, true);
+	} else {
+		LDLM_DEBUG(lock, "do not add lock into lru list");
+		unlock_res_and_lock(lock);
+	}
+
+	EXIT;
+}
+
 /**
  * Decrease reader/writer refcount for LDLM lock with handle \a lockh
  */
+void lustre_ldlm_lock_decref(const struct lustre_handle *lockh, enum ldlm_mode mode)
+{
+        struct ldlm_lock *lock = __ldlm_handle2lock(lockh, 0);
+	LASSERTF(lock != NULL, "Non-existing lock: %#llx\n", lockh->cookie);
+        lustre_ldlm_lock_decref_internal(lock, mode);
+        //ldlm_lock_decref_internal(lock, mode);
+        LDLM_LOCK_PUT(lock);
+}
+EXPORT_SYMBOL(lustre_ldlm_lock_decref);
+
 void ldlm_lock_decref(const struct lustre_handle *lockh, enum ldlm_mode mode)
 {
         struct ldlm_lock *lock = __ldlm_handle2lock(lockh, 0);
@@ -1392,15 +1474,45 @@ void ldlm_lock_allow_match(struct ldlm_lock *lock)
 }
 EXPORT_SYMBOL(ldlm_lock_allow_match);
 
+
+KTDEF(ldlm_handle2lock);
+EXPORT_SYMBOL(ldlm_handle2lock_clock);
+
 KTDEF(search_itree);
 EXPORT_SYMBOL(search_itree_clock);
 
 KTDEF(sptlrpc_import_check_ctx);
 EXPORT_SYMBOL(sptlrpc_import_check_ctx_clock);
 
+KTDEF(ldlm_resource_get);
+EXPORT_SYMBOL(ldlm_resource_get_clock);
+
+KTDEF(LDLM_RESOURCE_ADDREF);
+EXPORT_SYMBOL(LDLM_RESOURCE_ADDREF_clock);
+
 KTDEF(lock_res);
 EXPORT_SYMBOL(lock_res_clock);
 
+KTDEF(search_queue);
+EXPORT_SYMBOL(search_queue_clock);
+
+KTDEF(LDLM_RESOURCE_DELREF);
+EXPORT_SYMBOL(LDLM_RESOURCE_DELREF_clock);
+
+KTDEF(ldlm_resource_putref);
+EXPORT_SYMBOL(ldlm_resource_putref_clock);
+
+KTDEF(l_wait_event_abortable);
+EXPORT_SYMBOL(l_wait_event_abortable_clock);
+
+KTDEF(ldlm_lock2handle);
+EXPORT_SYMBOL(ldlm_lock2handle_clock);
+
+KTDEF(l_completion_ast);
+EXPORT_SYMBOL(l_completion_ast_clock);
+
+KTDEF(wait_event_idle_timeout);
+EXPORT_SYMBOL(wait_event_idle_timeout_clock);
 /**
  * Attempt to find a lock with specified properties.
  *
@@ -1459,7 +1571,10 @@ enum ldlm_mode ldlm_lock_match_with_skip(struct ldlm_namespace *ns,
 
 
 	if (ns == NULL) {
+		ktget(&localclock[0]);
 		data.lmd_old = ldlm_handle2lock(lockh);
+		ktget(&localclock[1]);
+		ktput(localclock, ldlm_handle2lock);
 		LASSERT(data.lmd_old != NULL);
 
 		ns = ldlm_lock_to_ns(data.lmd_old);
@@ -1468,7 +1583,10 @@ enum ldlm_mode ldlm_lock_match_with_skip(struct ldlm_namespace *ns,
 		*data.lmd_mode = data.lmd_old->l_req_mode;
 	}
 
+	ktget(&localclock[0]);
 	res = ldlm_resource_get(ns, res_id, type, 0);
+	ktget(&localclock[1]);
+	ktput(localclock, ldlm_resource_get);
 	if (IS_ERR(res)) {
 		LASSERT(data.lmd_old == NULL);
 		RETURN(0);
@@ -1476,7 +1594,10 @@ enum ldlm_mode ldlm_lock_match_with_skip(struct ldlm_namespace *ns,
 
 repeat:
 	group_lock = NULL;
+	ktget(&localclock[0]);
 	LDLM_RESOURCE_ADDREF(res);
+	ktget(&localclock[1]);
+	ktput(localclock, LDLM_RESOURCE_ADDREF);
 	ktget(&localclock[0]);
 	lock_res(res);
 	ktget(&localclock[1]);
@@ -1490,7 +1611,10 @@ repeat:
 		ktput(localclock, search_itree);
 	}
 	else{
+		ktget(&localclock[0]);
 		lock = search_queue(&res->lr_granted, &data);
+		ktget(&localclock[1]);
+		ktput(localclock, search_queue);
 	}
 	if (!lock && !(flags & LDLM_FL_BLOCK_GRANTED))
 		lock = search_queue(&res->lr_waiting, &data);
@@ -1500,50 +1624,69 @@ repeat:
 	    (data.lmd_match & LDLM_MATCH_GROUP))
 		group_lock = lock;
 	unlock_res(res);
+	ktget(&localclock[0]);
 	LDLM_RESOURCE_DELREF(res);
+	ktget(&localclock[1]);
+	ktput(localclock, LDLM_RESOURCE_DELREF);
 
 	if (group_lock) {
 		pr_info("Waiting for lock %p\n", lock);
+		ktget(&localclock[0]);
 		l_wait_event_abortable(group_lock->l_waitq,
 				       ldlm_is_destroyed(lock));
+		ktget(&localclock[1]);
+		ktput(localclock, l_wait_event_abortable);
 		LDLM_LOCK_RELEASE(lock);
 		goto repeat;
 	}
+	ktget(&localclock[0]);
 	ldlm_resource_putref(res);
+	ktget(&localclock[1]);
+	ktput(localclock, ldlm_resource_putref);
 
 	if (lock) {
+		ktget(&localclock[0]);
 		ldlm_lock2handle(lock, lockh);
+		ktget(&localclock[1]);
+		ktput(localclock, ldlm_lock2handle);
 		if ((flags & LDLM_FL_LVB_READY) &&
 		    (!ldlm_is_lvb_ready(lock))) {
 			__u64 wait_flags = LDLM_FL_LVB_READY |
 				LDLM_FL_DESTROYED | LDLM_FL_FAIL_NOTIFIED;
 
 			if (lock->l_completion_ast) {
-				int err = lock->l_completion_ast(lock,
-							LDLM_FL_WAIT_NOREPROC,
-							NULL);
+				int err = 0;
+				ktget(&localclock[0]);
+				err = lock->l_completion_ast(lock,
+						LDLM_FL_WAIT_NOREPROC,
+						NULL);
+				ktget(&localclock[1]);
+				ktput(localclock, l_completion_ast);
 				if (err)
 					GOTO(out_fail_match, matched = 0);
 			}
 
+			ktget(&localclock[0]);
 			wait_event_idle_timeout(
 				lock->l_waitq,
 				lock->l_flags & wait_flags,
 				cfs_time_seconds(obd_timeout));
+			ktget(&localclock[1]);
+			ktput(localclock, wait_event_idle_timeout);
 
 
 			if (!ldlm_is_lvb_ready(lock))
 				GOTO(out_fail_match, matched = 0);
 		}
-		ktget(&localclock[0]);
+		//ktget(&localclock[0]);
 		/* check user's security context */
 		// if (lock->l_conn_export &&
 		//     sptlrpc_import_check_ctx(
 		// 		class_exp2cliimp(lock->l_conn_export))){
 		// 	GOTO(out_fail_match, matched = 0);
 		// }
-		ktget(&localclock[1]);
-		ktput(localclock, sptlrpc_import_check_ctx);
+		//ktget(&localclock[1]);
+		//ktput(localclock, sptlrpc_import_check_ctx);
 
 		LDLM_DEBUG(lock, "matched (%llu %llu)",
 			   (type == LDLM_PLAIN || type == LDLM_IBITS) ?

@@ -3773,6 +3773,7 @@ again:
 		}
 
 		ktget(&localclock[0]);
+		//ll_write_begin()
 		status = a_ops->write_begin(file, mapping, pos, bytes, flags,
 						&page, &fsdata);
 		ktget(&localclock[1]);

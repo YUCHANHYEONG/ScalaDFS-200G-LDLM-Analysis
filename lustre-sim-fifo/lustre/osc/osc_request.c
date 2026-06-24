@@ -687,15 +687,21 @@ static int osc_destroy(const struct lu_env *env, struct obd_export *exp,
 	RETURN(0);
 }
 
+KTDEF(cl_loi_list_lock_osc_announce_cached);
+EXPORT_SYMBOL(cl_loi_list_lock_osc_announce_cached_clock);
 static void osc_announce_cached(struct client_obd *cli, struct obdo *oa,
                                 long writing_bytes)
 {
 	u64 bits = OBD_MD_FLBLOCKS | OBD_MD_FLGRANT;
+	ktime_t localclock[2];
 
 	LASSERT(!(oa->o_valid & bits));
 
 	oa->o_valid |= bits;
+	ktget(&localclock[0]);
 	spin_lock(&cli->cl_loi_list_lock);
+	ktget(&localclock[1]);
+	ktput(localclock, cl_loi_list_lock_osc_announce_cached);
 	if (cli->cl_ocd_grant_param)
 		oa->o_dirty = cli->cl_dirty_grant;
 	else
@@ -770,9 +776,16 @@ void osc_update_next_shrink(struct client_obd *cli)
 }
 EXPORT_SYMBOL(osc_update_next_shrink);
 
+KTDEF(cl_loi_list_lock___osc_update_grant);
+EXPORT_SYMBOL(cl_loi_list_lock___osc_update_grant_clock);
 static void __osc_update_grant(struct client_obd *cli, u64 grant)
 {
+	ktime_t localclock[2];
+
+	ktget(&localclock[0]);
 	spin_lock(&cli->cl_loi_list_lock);
+	ktget(&localclock[1]);
+	ktput(localclock, cl_loi_list_lock___osc_update_grant);
 	cli->cl_avail_grant += grant;
 	spin_unlock(&cli->cl_loi_list_lock);
 }
@@ -818,9 +831,17 @@ out:
 	return rc;
 }
 
+KTDEF(cl_loi_list_lock_osc_shrink_grant_local);
+EXPORT_SYMBOL(cl_loi_list_lock_osc_shrink_grant_local_clock);
+
 static void osc_shrink_grant_local(struct client_obd *cli, struct obdo *oa)
 {
+	ktime_t localclock[2];
+
+	ktget(&localclock[0]);
 	spin_lock(&cli->cl_loi_list_lock);
+	ktget(&localclock[1]);
+	ktput(localclock, cl_loi_list_lock_osc_shrink_grant_local);
 	oa->o_grant = cli->cl_avail_grant / 4;
 	cli->cl_avail_grant -= oa->o_grant;
 	spin_unlock(&cli->cl_loi_list_lock);
@@ -832,16 +853,23 @@ static void osc_shrink_grant_local(struct client_obd *cli, struct obdo *oa)
         osc_update_next_shrink(cli);
 }
 
+KTDEF(cl_loi_list_lock_osc_shrink_grant);
+EXPORT_SYMBOL(cl_loi_list_lock_osc_shrink_grant_clock);
+
 /* Shrink the current grant, either from some large amount to enough for a
  * full set of in-flight RPCs, or if we have already shrunk to that limit
  * then to enough for a single RPC.  This avoids keeping more grant than
  * needed, and avoids shrinking the grant piecemeal. */
 static int osc_shrink_grant(struct client_obd *cli)
 {
+	ktime_t localclock[2];
 	__u64 target_bytes = (cli->cl_max_rpcs_in_flight + 1) *
 			     (cli->cl_max_pages_per_rpc << PAGE_SHIFT);
 
+	ktget(&localclock[0]);
 	spin_lock(&cli->cl_loi_list_lock);
+	ktget(&localclock[1]);
+	ktput(localclock, cl_loi_list_lock_osc_shrink_grant);
 	if (cli->cl_avail_grant <= target_bytes)
 		target_bytes = cli->cl_max_pages_per_rpc << PAGE_SHIFT;
 	spin_unlock(&cli->cl_loi_list_lock);
@@ -849,13 +877,23 @@ static int osc_shrink_grant(struct client_obd *cli)
 	return osc_shrink_grant_to_target(cli, target_bytes);
 }
 
+KTDEF(cl_loi_list_lock_osc_shrink_grant_to_target_1);
+EXPORT_SYMBOL(cl_loi_list_lock_osc_shrink_grant_to_target_1_clock);
+
+KTDEF(cl_loi_list_lock_osc_shrink_grant_to_target_2);
+EXPORT_SYMBOL(cl_loi_list_lock_osc_shrink_grant_to_target_2_clock);
+
 int osc_shrink_grant_to_target(struct client_obd *cli, __u64 target_bytes)
 {
 	int			rc = 0;
 	struct ost_body        *body;
+	ktime_t localclock[2];
 	ENTRY;
 
+	ktget(&localclock[0]);
 	spin_lock(&cli->cl_loi_list_lock);
+	ktget(&localclock[1]);
+	ktput(localclock, cl_loi_list_lock_osc_shrink_grant_to_target_1);
 	/* Don't shrink if we are already above or below the desired limit
 	 * We don't want to shrink below a single RPC, as that will negatively
 	 * impact block allocation and long-term performance. */
@@ -874,7 +912,10 @@ int osc_shrink_grant_to_target(struct client_obd *cli, __u64 target_bytes)
 
 	osc_announce_cached(cli, &body->oa, 0);
 
+	ktget(&localclock[0]);
 	spin_lock(&cli->cl_loi_list_lock);
+	ktget(&localclock[1]);
+	ktput(localclock, cl_loi_list_lock_osc_shrink_grant_to_target_2);
 	if (target_bytes >= cli->cl_avail_grant) {
 		/* available grant has changed since target calculation */
 		spin_unlock(&cli->cl_loi_list_lock);
@@ -1017,8 +1058,11 @@ static void osc_del_grant_list(struct client_obd *client)
 	mutex_unlock(&client_gtd.gtd_mutex);
 }
 
+KTDEF(cl_loi_list_lock_osc_init_grant);
+EXPORT_SYMBOL(cl_loi_list_lock_osc_init_grant_clock);
 void osc_init_grant(struct client_obd *cli, struct obd_connect_data *ocd)
 {
+	ktime_t localclock[2];
 	/*
 	 * ocd_grant is the total grant amount we're expect to hold: if we've
 	 * been evicted, it's the new avail_grant amount, cl_dirty_pages will
@@ -1028,7 +1072,10 @@ void osc_init_grant(struct client_obd *cli, struct obd_connect_data *ocd)
 	 * race is tolerable here: if we're evicted, but imp_state already
 	 * left EVICTED state, then cl_dirty_pages must be 0 already.
 	 */
+	ktget(&localclock[0]);
 	spin_lock(&cli->cl_loi_list_lock);
+	ktget(&localclock[1]);
+	ktput(localclock, cl_loi_list_lock_osc_init_grant);
 	//ocd->ocd_grant = cli->cl_dirty_max_pages * 4 * 1024 * 8;
 	// Grant Size
 	cli->cl_avail_grant = ocd->ocd_grant; // 8 MB // Default
@@ -1060,7 +1107,7 @@ void osc_init_grant(struct client_obd *cli, struct obd_connect_data *ocd)
 	//cli->cl_dirty_max_pages = 256000UL * 64;	// 64GB
 	//cli->cl_dirty_max_pages = 256000UL * 96;	// 96GB
 	//cli->cl_dirty_max_pages = 256000UL * 256;	// 256GB
-	pr_info("[%s] cli->cl_avail_grant: %ld(KB)\n", __func__, cli->cl_avail_grant/1024);
+	//pr_info("[%s] cli->cl_avail_grant: %ld(KB)\n", __func__, cli->cl_avail_grant/1024);
 	//pr_info("[%s] cli->cl_dirty_max_pages: %ld\n", __func__,  cli->cl_dirty_max_pages);
 	if (cli->cl_import->imp_state != LUSTRE_IMP_EVICTED) {
 		unsigned long consumed = cli->cl_reserved_grant;
@@ -2562,6 +2609,10 @@ static void osc_release_ppga(struct brw_page **ppga, size_t count)
 
 KTDEF(osc_brw_fini_request);
 EXPORT_SYMBOL(osc_brw_fini_request_clock);
+KTDEF(brw_cl_loi_list_lock);
+EXPORT_SYMBOL(brw_cl_loi_list_lock_clock);
+KTDEF(brw_osc_io_unplug);
+EXPORT_SYMBOL(brw_osc_io_unplug_clock);
 
 static int brw_interpret_internal(const struct lu_env *env,
 			 struct ptlrpc_request *req, void *args, int rc)
@@ -2698,7 +2749,10 @@ free:
 	osc_release_ppga(aa->aa_ppga, aa->aa_page_count);
 	ptlrpc_lprocfs_brw(req, transferred);
 
+	ktget(&localclock[0]);
 	spin_lock(&cli->cl_loi_list_lock);
+	ktget(&localclock[1]);
+	ktput(localclock, brw_cl_loi_list_lock);
 	/* We need to decrement before osc_ap_completion->osc_wake_cache_waiters
 	 * is called so we know whether to go to sync BRWs or wait for more
 	 * RPCs to complete */
@@ -2709,7 +2763,10 @@ free:
 	osc_wake_cache_waiters(cli);
 	spin_unlock(&cli->cl_loi_list_lock);
 
+	ktget(&localclock[0]);
 	osc_io_unplug(env, cli, NULL);
+	ktget(&localclock[1]);
+	ktput(localclock, brw_osc_io_unplug);
 	RETURN(rc);
 }
 
@@ -2746,6 +2803,9 @@ static void brw_commit(struct ptlrpc_request *req)
 	}
 }
 
+KTDEF(cl_loi_list_lock_osc_build_rpc);
+EXPORT_SYMBOL(cl_loi_list_lock_osc_build_rpc_clock);
+
 /**
  * Build an RPC by the list of extent @ext_list. The caller must ensure
  * that the total pages in this list are NOT over max pages per RPC.
@@ -2776,6 +2836,7 @@ int osc_build_rpc(const struct lu_env *env, struct client_obd *cli,
 	__u32				layout_version = 0;
 	LIST_HEAD(rpc_list);
 	struct ost_body			*body;
+	ktime_t localclock[2];
 	ENTRY;
 	LASSERT(!list_empty(ext_list));
 
@@ -2893,7 +2954,10 @@ int osc_build_rpc(const struct lu_env *env, struct client_obd *cli,
 	INIT_LIST_HEAD(&aa->aa_exts);
 	list_splice_init(ext_list, &aa->aa_exts);
 
+	ktget(&localclock[0]);
 	spin_lock(&cli->cl_loi_list_lock);
+	ktget(&localclock[1]);
+	ktput(localclock, cl_loi_list_lock_osc_build_rpc);
 	starting_offset >>= PAGE_SHIFT;
 	ending_offset >>= PAGE_SHIFT;
 	if (cmd == OBD_BRW_READ) {
@@ -2957,6 +3021,9 @@ out:
 	RETURN(rc);
 }
 
+KTDEF(cl_loi_list_lock_application_build_rpc);
+EXPORT_SYMBOL(cl_loi_list_lock_application_build_rpc_clock);
+
 int application_build_rpc(const struct lu_env *env, struct client_obd *cli,
 		  struct list_head *ext_list, int cmd, struct ptlrpc_request_set *set)
 {
@@ -2982,6 +3049,7 @@ int application_build_rpc(const struct lu_env *env, struct client_obd *cli,
 	__u32				layout_version = 0;
 	LIST_HEAD(rpc_list);
 	struct ost_body			*body;
+	ktime_t localclock[2];
 	ENTRY;
 	LASSERT(!list_empty(ext_list));
 
@@ -3101,7 +3169,10 @@ int application_build_rpc(const struct lu_env *env, struct client_obd *cli,
 	INIT_LIST_HEAD(&aa->aa_exts);
 	list_splice_init(ext_list, &aa->aa_exts);
 
+	ktget(&localclock[0]);
 	spin_lock(&cli->cl_loi_list_lock);
+	ktget(&localclock[1]);
+	ktput(localclock, cl_loi_list_lock_application_build_rpc);
 	starting_offset >>= PAGE_SHIFT;
 	ending_offset >>= PAGE_SHIFT;
 	if (cmd == OBD_BRW_READ) {
@@ -3334,6 +3405,9 @@ EXPORT_SYMBOL(osc_lock_upcall_clock);
 KTDEF(ldlm_lock_decref);
 EXPORT_SYMBOL(ldlm_lock_decref_clock);
 
+
+void lustre_ldlm_lock_decref(const struct lustre_handle *lockh, enum ldlm_mode mode);
+
 /* When enqueuing asynchronously, locks are not ordered, we can obtain a lock
  * from the 2nd OSC before a lock from the 1st one. This does not deadlock with
  * other synchronous requests, however keeping some locks and trying to obtain
@@ -3436,7 +3510,8 @@ int osc_enqueue_base(struct obd_export *exp, struct ldlm_res_id *res_id,
 			ktput(localclock, osc_lock_upcall);
 
 			ktget(&localclock[0]);
-			ldlm_lock_decref(&lockh, mode);
+			lustre_ldlm_lock_decref(&lockh, mode);
+			//ldlm_lock_decref(&lockh, mode);
 			ktget(&localclock[1]);
 			ktput(localclock, ldlm_lock_decref);
 			LDLM_LOCK_PUT(matched);
@@ -3863,17 +3938,23 @@ int osc_set_info_async(const struct lu_env *env, struct obd_export *exp,
 }
 EXPORT_SYMBOL(osc_set_info_async);
 
+KTDEF(cl_loi_list_lock_osc_reconnect);
+EXPORT_SYMBOL(cl_loi_list_lock_osc_reconnect_clock);
 int osc_reconnect(const struct lu_env *env, struct obd_export *exp,
 		  struct obd_device *obd, struct obd_uuid *cluuid,
 		  struct obd_connect_data *data, void *localdata)
 {
 	struct client_obd *cli = &obd->u.cli;
+	ktime_t localclock[2];
 
 	if (data != NULL && (data->ocd_connect_flags & OBD_CONNECT_GRANT)) {
 		long lost_grant;
 		long grant;
 
+		ktget(&localclock[0]);
 		spin_lock(&cli->cl_loi_list_lock);
+		ktget(&localclock[1]);
+		ktput(localclock, cl_loi_list_lock_osc_reconnect);
 		grant = cli->cl_avail_grant + cli->cl_reserved_grant;
 		if (data->ocd_connect_flags & OBD_CONNECT_GRANT_PARAM) {
 			/* restore ocd_grant_blkbits as client page bits */
@@ -3954,12 +4035,16 @@ int osc_ldlm_resource_invalidate(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 }
 EXPORT_SYMBOL(osc_ldlm_resource_invalidate);
 
+KTDEF(cl_loi_list_lock_osc_import_event);
+EXPORT_SYMBOL(cl_loi_list_lock_osc_import_event_clock);
+
 static int osc_import_event(struct obd_device *obd,
                             struct obd_import *imp,
                             enum obd_import_event event)
 {
         struct client_obd *cli;
         int rc = 0;
+	ktime_t localclock[2];
 
         ENTRY;
         LASSERT(imp->imp_obd == obd);
@@ -3967,7 +4052,10 @@ static int osc_import_event(struct obd_device *obd,
         switch (event) {
         case IMP_EVENT_DISCON: {
                 cli = &obd->u.cli;
+		ktget(&localclock[0]);
 		spin_lock(&cli->cl_loi_list_lock);
+		ktget(&localclock[1]);
+		ktput(localclock, cl_loi_list_lock_osc_import_event);
 		cli->cl_avail_grant = 0;
 		cli->cl_lost_grant = 0;
 		spin_unlock(&cli->cl_loi_list_lock);

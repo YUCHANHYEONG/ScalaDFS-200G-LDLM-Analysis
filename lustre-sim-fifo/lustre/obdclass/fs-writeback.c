@@ -2661,6 +2661,8 @@ EXPORT_SYMBOL(wb_over_bg_thresh_clock);
 
 extern bool lustre_wb_over_bg_thresh(struct bdi_writeback *wb);
 
+KTDEF(lustre_wb_writeback);
+EXPORT_SYMBOL(lustre_wb_writeback_clock);
 static long wb_check_background_flush(struct bdi_writeback *wb)
 {
 	ktime_t localclock[2];
@@ -2681,10 +2683,16 @@ static long wb_check_background_flush(struct bdi_writeback *wb)
 			.range_cyclic	= 1,
 			.reason		= WB_REASON_BACKGROUND,
 		};
+		long ret = 0;
 
 
 		// return wb_writeback(wb, &work);
-		return lustre_wb_writeback(wb, &work);
+		ktget(&localclock[0]);
+		ret = lustre_wb_writeback(wb, &work);
+		ktget(&localclock[1]);
+		ktput(localclock, lustre_wb_writeback);
+
+		return ret;
 	}
 	return 0;
 }

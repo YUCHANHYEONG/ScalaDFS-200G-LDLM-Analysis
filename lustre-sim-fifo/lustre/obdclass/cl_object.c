@@ -209,6 +209,9 @@ int cl_object_attr_get(const struct lu_env *env, struct cl_object *top,
 
 	cl_object_for_each(obj, top) {
 		if (obj->co_ops->coo_attr_get != NULL) {
+			// vvp_attr_get()
+			// lov_attr_get()
+			// osc_io_setattr_start()
 			result = obj->co_ops->coo_attr_get(env, obj, attr);
 			if (result != 0) {
 				if (result > 0)

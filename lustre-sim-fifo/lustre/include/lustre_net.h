@@ -1153,6 +1153,7 @@ static inline int ptlrpc_req_interpret(const struct lu_env *env,
                                        struct ptlrpc_request *req, int rc)
 {
 	if (req->rq_interpret_reply != NULL) {
+		// brw_interpret()
 		req->rq_status = req->rq_interpret_reply(env, req,
 							 &req->rq_async_args,
 							 rc);

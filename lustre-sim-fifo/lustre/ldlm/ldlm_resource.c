@@ -1486,6 +1486,17 @@ static void ldlm_resource_free(struct ldlm_resource *res)
 	call_rcu(&res->lr_rcu, __ldlm_resource_free);
 }
 
+KTDEF(cfs_hash_bd_get_and_lock);
+EXPORT_SYMBOL(cfs_hash_bd_get_and_lock_clock);
+
+KTDEF(cfs_hash_bd_lookup_locked);
+EXPORT_SYMBOL(cfs_hash_bd_lookup_locked_clock);
+
+KTDEF(cfs_hash_bd_unlock);
+EXPORT_SYMBOL(cfs_hash_bd_unlock_clock);
+
+KTDEF(hlist_entry);
+EXPORT_SYMBOL(hlist_entry_clock);
 /**
  * Return a reference to resource with given name, creating it if necessary.
  * Args: namespace with ns_lock unlocked
@@ -1502,15 +1513,26 @@ ldlm_resource_get(struct ldlm_namespace *ns, const struct ldlm_res_id *name,
 	__u64			version;
 	int			ns_refcount = 0;
 	int hash;
+	ktime_t localclock[2];
 
 	LASSERT(ns != NULL);
 	LASSERT(ns->ns_rs_hash != NULL);
 	LASSERT(name->name[0] != 0);
 
+	ktget(&localclock[0]);
 	cfs_hash_bd_get_and_lock(ns->ns_rs_hash, (void *)name, &bd, 0);
+	ktget(&localclock[1]);
+	ktput(localclock, cfs_hash_bd_get_and_lock);
+
+	ktget(&localclock[0]);
 	hnode = cfs_hash_bd_lookup_locked(ns->ns_rs_hash, &bd, (void *)name);
+	ktget(&localclock[1]);
+	ktput(localclock, cfs_hash_bd_lookup_locked);
 	if (hnode != NULL) {
+		ktget(&localclock[0]);
 		cfs_hash_bd_unlock(ns->ns_rs_hash, &bd, 0);
+		ktget(&localclock[1]);
+		ktput(localclock, cfs_hash_bd_unlock);
 		GOTO(found, res);
 	}
 
@@ -1542,7 +1564,10 @@ ldlm_resource_get(struct ldlm_namespace *ns, const struct ldlm_res_id *name,
 		lu_ref_fini(&res->lr_reference);
 		ldlm_resource_free(res);
 found:
+		ktget(&localclock[0]);
 		res = hlist_entry(hnode, struct ldlm_resource, lr_hash);
+		ktget(&localclock[1]);
+		ktput(localclock, hlist_entry);
 		return res;
 	}
 	/* We won! Let's add the resource. */
@@ -1600,25 +1625,59 @@ static void __ldlm_resource_putref_final(struct cfs_hash_bd *bd,
 		ldlm_namespace_put(nsb->nsb_namespace);
 }
 
+KTDEF(cfs_hash_bd_get);
+EXPORT_SYMBOL(cfs_hash_bd_get_clock);
+
+KTDEF(cfs_hash_bd_dec_and_lock);
+EXPORT_SYMBOL(cfs_hash_bd_dec_and_lock_clock);
+
+KTDEF(__ldlm_resource_putref_final);
+EXPORT_SYMBOL(__ldlm_resource_putref_final_clock);
+
+KTDEF(lvbo_free);
+EXPORT_SYMBOL(lvbo_free_clock);
+
+KTDEF(ldlm_resource_free);
+EXPORT_SYMBOL(ldlm_resource_free_clock);
 /* Returns 1 if the resource was freed, 0 if it remains. */
 int ldlm_resource_putref(struct ldlm_resource *res)
 {
 	struct ldlm_namespace *ns = ldlm_res_to_ns(res);
 	struct cfs_hash_bd   bd;
+	ktime_t localclock[2];
 
 	LASSERT_ATOMIC_GT_LT(&res->lr_refcount, 0, LI_POISON);
 	CDEBUG(D_INFO, "putref res: %p count: %d\n",
 	       res, atomic_read(&res->lr_refcount) - 1);
 
+	ktget(&localclock[0]);
 	cfs_hash_bd_get(ns->ns_rs_hash, &res->lr_name, &bd);
+	ktget(&localclock[1]);
+	ktput(localclock, cfs_hash_bd_get);
+	ktget(&localclock[0]);
 	if (cfs_hash_bd_dec_and_lock(ns->ns_rs_hash, &bd, &res->lr_refcount)) {
+		ktget(&localclock[1]);
+		ktput(localclock, cfs_hash_bd_dec_and_lock);
+
+		ktget(&localclock[0]);
 		__ldlm_resource_putref_final(&bd, res);
+		ktget(&localclock[1]);
+		ktput(localclock, __ldlm_resource_putref_final);
 		cfs_hash_bd_unlock(ns->ns_rs_hash, &bd, 1);
-		if (ns->ns_lvbo && ns->ns_lvbo->lvbo_free)
+		if (ns->ns_lvbo && ns->ns_lvbo->lvbo_free){
+			ktget(&localclock[0]);
 			ns->ns_lvbo->lvbo_free(res);
+			ktget(&localclock[1]);
+			ktput(localclock, lvbo_free);
+		}
+		ktget(&localclock[0]);
 		ldlm_resource_free(res);
+		ktget(&localclock[1]);
+		ktput(localclock, ldlm_resource_free);
 		return 1;
 	}
+	ktget(&localclock[1]);
+	ktput(localclock, cfs_hash_bd_dec_and_lock);
 	return 0;
 }
 EXPORT_SYMBOL(ldlm_resource_putref);
